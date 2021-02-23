@@ -2,4 +2,5 @@
 * text=auto
 bot_token.txt
 log_channel.txt
+run_botcrayon.bat
 data/
