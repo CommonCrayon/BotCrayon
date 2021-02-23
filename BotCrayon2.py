@@ -43,7 +43,7 @@ def check_time(workshopid):
         time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
         return time_updated
     except:
-        print("Failed to Get Map Data.")
+        print("Failed to check_time of " + str(workshopid))
 
 
 # Retriving Map Information.
@@ -83,7 +83,7 @@ def get_mapinfo(workshopid):
             time_updated,
         )
     except:
-        print("Failed to Get Map Data.")
+        print("Failed to Get Map Data of " + str(workshopid))
 
 
 # Retriving Changelog.
@@ -106,7 +106,7 @@ def get_changelog(workshopid):
         changelog = changelog[0:1023]
         return changelog
     except:
-        print("Failed to Get Changelog.")
+        print("Failed to Get Changelog of " + str(workshopid))
 
 
 # Update Database after Map Update.
@@ -177,7 +177,7 @@ async def check_update():
         sqlite_select_query = """SELECT * from maplist"""
         c.execute(sqlite_select_query)
         records = c.fetchall()
-        print("Check at: " + str(datetime.now()) + " Rows: " + str(len(records)))
+        print("Rows: " + str(len(records)) + " Check at: " + str(datetime.now()))
 
         for row in records:
             userid = row[0]
@@ -231,7 +231,7 @@ async def check_update():
                     print("Failed to send embed update")
 
                 update_record(time_updated, userid, mapid)
-
+        print("Finished Check at: " + str(datetime.now()))
         c.close()
 
     except:
