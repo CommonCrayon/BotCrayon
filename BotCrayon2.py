@@ -31,6 +31,21 @@ def create_database():
     print("\n")
 
 
+# Getting the time_updated to check whether the map has been updated or not.
+def check_time(workshopid):
+    try:
+        payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
+        r = requests.post(
+            "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+            data=payload,
+        )
+        data = r.json()
+        time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
+        return time_updated
+    except:
+        print("Failed to Get Map Data.")
+
+
 # Retriving Map Information.
 def get_mapinfo(workshopid):
     try:
@@ -159,47 +174,35 @@ async def check_update():
     try:
         conn = sqlite3.connect("maplist.db")
         c = conn.cursor()
-        print("Connected to SQLite")
         sqlite_select_query = """SELECT * from maplist"""
         c.execute(sqlite_select_query)
         records = c.fetchall()
-        print(
-            "Started 10 Minute Check at"
-            + str(datetime.now())
-            + " Total rows are: "
-            + str(len(records))
-        )
+        print("Check at: " + str(datetime.now()) + " Rows: " + str(len(records)))
 
         for row in records:
             userid = row[0]
             workshopid = row[1]
             stored_update = row[2]
-
-            (
-                name,
-                workshop_link,
-                upload,
-                update,
-                thumbnail,
-                mapid,
-                filename,
-                time_updated,
-            ) = get_mapinfo(workshopid)
-            changelog = get_changelog(workshopid)
+            time_updated = check_time(workshopid)
 
             if stored_update == time_updated:
                 pass
 
             else:
-                print(
-                    str(name)
-                    + " Updated! Checked on: "
-                    + str(datetime.now())
-                    + " for "
-                    + userid
-                )
 
                 try:
+                    (
+                        name,
+                        workshop_link,
+                        upload,
+                        update,
+                        thumbnail,
+                        mapid,
+                        filename,
+                        time_updated,
+                    ) = get_mapinfo(workshopid)
+                    changelog = get_changelog(workshopid)
+
                     embed = discord.Embed(title=name + " Updated!", color=0xFF6F00)
                     embed.url = workshop_link
                     embed.add_field(name="Time Uploaded:", value=upload, inline=False)
@@ -212,13 +215,24 @@ async def check_update():
 
                     user = await client.fetch_user(userid)
                     await user.send(embed=embed)
+
+                    channel = client.get_channel(channel_log)
+                    await channel.send(str(name) + " Updated for " + str(userid))
+
+                    print(
+                        str(name)
+                        + " Updated! Checked on: "
+                        + str(datetime.now())
+                        + " for "
+                        + userid
+                    )
+
                 except:
                     print("Failed to send embed update")
 
                 update_record(time_updated, userid, mapid)
 
         c.close()
-        print("Closed SQLite Connection.")
 
     except:
         print("Failed 10 Minute Update Check.")
@@ -237,7 +251,16 @@ async def on_message(message):
         userid = message.author.id
         username = message.author
 
-        embed = discord.Embed(title="BotCrayon", color=0xFF6F00)
+        embed = discord.Embed(
+            title="BotCrayon",
+            description="I am the Bot of CommonCrayon."
+            + "\n"
+            + "My main current function is to check for map updates on the CSGO Steam Workshop."
+            + "\n"
+            + " Please contact CommonCrayon#9275 if you have any issues",
+            color=0xFF6F00,
+        )
+        embed.set_thumbnail(url="https://i.imgur.com/laJnwhg.png")
         embed.add_field(
             name="$add [WorkshopID]",
             value="Adds a workshop map to your update checker list.",
