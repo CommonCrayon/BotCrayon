@@ -32,7 +32,7 @@ def create_database():
 
 
 # Getting the time_updated to check whether the map has been updated or not.
-def check_time(workshopid):
+def check_time(workshopid, stored_update):
     try:
         payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
         r = requests.post(
@@ -44,6 +44,8 @@ def check_time(workshopid):
         return time_updated
     except:
         print("Failed to check_time of " + str(workshopid))
+        time_updated = stored_update
+        return time_updated
 
 
 # Retriving Map Information.
@@ -183,7 +185,7 @@ async def check_update():
             userid = row[0]
             workshopid = row[1]
             stored_update = row[2]
-            time_updated = check_time(workshopid)
+            time_updated = check_time(workshopid, stored_update)
 
             if stored_update == time_updated:
                 pass
