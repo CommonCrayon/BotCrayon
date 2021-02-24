@@ -229,6 +229,9 @@ async def check_update():
                         + userid
                     )
 
+                    # Updates Database
+                    update_record(time_updated, userid, mapid)
+
                 except:
                     print(
                         "Failed to send embed update of "
@@ -237,7 +240,6 @@ async def check_update():
                         + str(userid)
                     )
 
-                update_record(time_updated, userid, mapid)
         print("Finished Check at: " + str(datetime.now()))
         c.close()
 
@@ -270,7 +272,9 @@ async def on_message(message):
         embed.set_thumbnail(url="https://i.imgur.com/laJnwhg.png")
         embed.add_field(
             name="$add [WorkshopID]",
-            value="Adds a workshop map to your update checker list.",
+            value="Adds a workshop map to your update checker list."
+            + "\n"
+            + "(Only Public Visibility WorkshopIDs Work!)",
             inline=False,
         )
         embed.add_field(
@@ -346,7 +350,9 @@ async def on_message(message):
             # Tells user that adding the map failed.
             embed = discord.Embed(
                 title="Failed to add.",
-                description="Incorrect WorkshopID or Try Again.",
+                description="Incorrect WorkshopID or Try Again."
+                + "\n"
+                + "(Remember! Only Public Visibility WorkshopIDs Work!)",
                 color=0xFF6F00,
             )
             print("Failed to add " + str(workshopid) + " by " + str(username))
