@@ -230,7 +230,12 @@ async def check_update():
                     )
 
                 except:
-                    print("Failed to send embed update")
+                    print(
+                        "Failed to send embed update of "
+                        + str(workshopid)
+                        + " for "
+                        + str(userid)
+                    )
 
                 update_record(time_updated, userid, mapid)
         print("Finished Check at: " + str(datetime.now()))
