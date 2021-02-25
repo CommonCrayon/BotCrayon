@@ -469,8 +469,14 @@ async def on_message(message):
                 user_list += f"{map}\n"
 
             # Creating Embed.
-            embed = discord.Embed(title="Update Checker List", color=0xFF6F00)
-            embed.add_field(name="Your List", value=user_list, inline=False)
+            if user_list == "":
+                user_list = str(
+                    "Your List is Empty." + "\n" + "Add a Map by $add [WorkshopID]"
+                )
+
+            embed = discord.Embed(
+                title="Update Checker List", description=user_list, color=0xFF6F00
+            )
 
             # Logs the Retreival of the List.
             print(str(username) + " requested list, containing: ")
@@ -482,7 +488,7 @@ async def on_message(message):
         except:
             # Informs user of error.
             embed = discord.Embed(
-                title="List Empty or Failed to Retrieve.", color=0xFF6F00
+                title="Failed to Retrieve. Try Again Later.", color=0xFF6F00
             )
 
             # Logs Error.
