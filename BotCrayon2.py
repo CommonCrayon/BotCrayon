@@ -106,6 +106,8 @@ def get_changelog(workshopid):
         )
         changelog = announcements.find("p").get_text("\n")
         changelog = changelog[0:1023]
+        if changelog == "":
+            changelog = str("Changelog was empty.")
         return changelog
     except:
         print("Failed to Get Changelog of " + str(workshopid))
@@ -203,7 +205,10 @@ async def check_update():
                         filename,
                         time_updated,
                     ) = get_mapinfo(workshopid)
+                    print("Api Request Successful")
+
                     changelog = get_changelog(workshopid)
+                    print("Changelog Request Successful")
 
                     embed = discord.Embed(title=name + " Updated!", color=0xFF6F00)
                     embed.url = workshop_link
@@ -215,8 +220,13 @@ async def check_update():
                         text="Map ID: " + mapid + "     " + "File Name: " + filename
                     )
 
+                    print("Embed Creation Successful")
+
                     user = await client.fetch_user(userid)
                     await user.send(embed=embed)
+
+                    # Updates Database
+                    update_record(time_updated, userid, mapid)
 
                     channel = client.get_channel(channel_log)
                     await channel.send(str(name) + " Updated for " + str(userid))
@@ -228,9 +238,6 @@ async def check_update():
                         + " for "
                         + userid
                     )
-
-                    # Updates Database
-                    update_record(time_updated, userid, mapid)
 
                 except:
                     print(
