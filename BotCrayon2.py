@@ -267,6 +267,11 @@ async def on_message(message):
         userid = message.author.id
         username = message.author
 
+        user = await client.fetch_user(userid)
+        botPending = await user.send(
+            "Processing Request, This might take a few seconds."
+        )
+
         embed = discord.Embed(
             title="BotCrayon",
             description="I am the Bot of CommonCrayon."
@@ -312,6 +317,7 @@ async def on_message(message):
 
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
+        await botPending.delete()
 
         channel = client.get_channel(channel_log)
         await channel.send(str(username) + " requested help.")
@@ -323,6 +329,11 @@ async def on_message(message):
         workshopid = message.content.strip("$add ")
         userid = message.author.id
         username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(
+            "Processing Request, This might take a few seconds."
+        )
 
         # Tries to add a map to the list.
         try:
@@ -371,6 +382,7 @@ async def on_message(message):
         # Sends the message the user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
+        await botPending.delete()
         print("\n")
 
     # Removing from Map List.
@@ -379,6 +391,11 @@ async def on_message(message):
         workshopid = message.content.strip("$remove ")
         userid = message.author.id
         username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(
+            "Processing Request, This might take a few seconds."
+        )
 
         # Tries to remove a map from the list.
         try:
@@ -412,11 +429,12 @@ async def on_message(message):
             )
             print("Failed removal of " + str(workshopid) + " " + str(username))
             channel = client.get_channel(channel_log)
-            await channel.send(str(username) + " Failed to Remove  " + str(workshopid))
+            await channel.send(str(username) + " Failed to Remove " + str(workshopid))
 
         # Sends message to user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
+        await botPending.delete()
 
     # Displays User's Map Update Checker List.
     if message.content.startswith("$list"):
@@ -424,6 +442,9 @@ async def on_message(message):
         userid = message.author.id
         username = message.author
         maps = []
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send("Retrieving List, This might take a few seconds.")
 
         # Getting the List of Maps for the User.
         async def get_list():
@@ -499,6 +520,7 @@ async def on_message(message):
         # Sends message to user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
+        await botPending.delete()
 
     # Displays only the changelog of the workshopid entered.
     if message.content.startswith("$changelog"):
@@ -506,6 +528,11 @@ async def on_message(message):
         workshopid = message.content.strip("$changelog ")
         userid = message.author.id
         username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(
+            "Processing Request, This might take a few seconds."
+        )
 
         try:
             # Getting Map information and Changelog.
@@ -522,7 +549,7 @@ async def on_message(message):
             changelog = get_changelog(workshopid)
 
             # Creating Embed.
-            embed = discord.Embed(title=name + " Updated!", color=0xFF6F00)
+            embed = discord.Embed(title=name, color=0xFF6F00)
             embed.url = workshop_link
             embed.add_field(name="Change Log", value=changelog, inline=True)
             embed.set_thumbnail(url=thumbnail)
@@ -532,7 +559,7 @@ async def on_message(message):
             print(name + " changelog by " + str(username))
             channel = client.get_channel(channel_log)
             await channel.send(
-                "Retrieving Changelog of  " + str(name) + " by " + str(username)
+                "Retrieving Changelog of " + str(name) + " by " + str(username)
             )
 
         except:
@@ -547,7 +574,7 @@ async def on_message(message):
             print("Failed changelog of " + str(workshopid) + " " + str(username))
             channel = client.get_channel(channel_log)
             await channel.send(
-                "Failed Retrieving Changelog of  "
+                "Failed Retrieving Changelog of "
                 + str(workshopid)
                 + " by "
                 + str(username)
@@ -556,6 +583,7 @@ async def on_message(message):
         # Sends message to user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
+        await botPending.delete()
 
     # Searches for Maps using WorkshopID.
     if message.content.startswith("$search"):
@@ -563,6 +591,11 @@ async def on_message(message):
         workshopid = message.content.strip("$search ")
         userid = message.author.id
         username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(
+            "Processing Request, This might take a few seconds."
+        )
 
         try:
             # Getting Map information and Changelog.
@@ -606,12 +639,13 @@ async def on_message(message):
             print("Error Searching " + str(workshopid) + " by " + str(username))
             channel = client.get_channel(channel_log)
             await channel.send(
-                "Error Searching  " + str(workshopid) + " by " + str(username)
+                "Error Searching " + str(workshopid) + " by " + str(username)
             )
 
         # Sends message to user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
+        await botPending.delete()
 
 
 # Executing BotCrayon.
