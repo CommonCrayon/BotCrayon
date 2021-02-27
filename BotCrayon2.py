@@ -10,35 +10,33 @@ from discord.ext.commands import Bot
 
 client = discord.Client()
 
+
+
 # Logging Channel ID
 log_channel_file = open("log_channel.txt")
 channel_log = int(log_channel_file.read())
+
+
 
 # Creating the database for the Map list.
 def create_database():
     try:
         conn = sqlite3.connect("maplist.db")
         c = conn.cursor()
-        c.execute(
-            """CREATE TABLE IF NOT EXISTS maplist
-                    (userid text, mapid text, updatetime integer)"""
-        )
+        c.execute("""CREATE TABLE IF NOT EXISTS maplist (userid text, mapid text, updatetime integer)""")
         conn.commit()
         c.close()
         print("Created maplist.db, if it didn't exist.")
     except:
         print("Failed to Create maplist.db.")
-    print("\n")
+
 
 
 # Getting the time_updated to check whether the map has been updated or not.
 def check_time(workshopid, stored_update):
     try:
         payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
-        r = requests.post(
-            "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
-            data=payload,
-        )
+        r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
         data = r.json()
         time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
         return time_updated
@@ -48,69 +46,55 @@ def check_time(workshopid, stored_update):
         return time_updated
 
 
+
 # Retriving Map Information.
 def get_mapinfo(workshopid):
     try:
         payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
-        r = requests.post(
-            "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
-            data=payload,
-        )
+        r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
         data = r.json()
+
         name = data["response"]["publishedfiledetails"][0]["title"]
+
         filename = data["response"]["publishedfiledetails"][0]["filename"]
         filename = filename.split("/")[-1]
+
         mapid = data["response"]["publishedfiledetails"][0]["publishedfileid"]
+
         time_created = data["response"]["publishedfiledetails"][0]["time_created"]
-        upload = time.strftime(
-            "%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_created)
-        )
+        upload = time.strftime("%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_created))
+
         time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
-        update = time.strftime(
-            "%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_updated)
-        )
+        update = time.strftime("%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_updated))
+
         preview_url = data["response"]["publishedfiledetails"][0]["preview_url"]
         thumbnail = preview_url + "/?ima=fit"
-        workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(
-            workshopid
-        )
-        return (
-            name,
-            workshop_link,
-            upload,
-            update,
-            thumbnail,
-            mapid,
-            filename,
-            time_updated,
-        )
+
+        workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid)
+
+        return (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated)
     except:
         print("Failed to Get Map Data of " + str(workshopid))
+
 
 
 # Retriving Changelog.
 def get_changelog(workshopid):
     try:
         from bs4 import BeautifulSoup
+        soup = BeautifulSoup(requests.get("https://steamcommunity.com/sharedfiles/filedetails/changelog/"+ str(workshopid)).content,"html.parser")
+        announcements = soup.find("div", class_="workshopAnnouncement")
 
-        soup = BeautifulSoup(
-            requests.get(
-                "https://steamcommunity.com/sharedfiles/filedetails/changelog/"
-                + str(workshopid)
-            ).content,
-            "html.parser",
-        )
-        announcements = soup.find(
-            "div",
-            class_="workshopAnnouncement",
-        )
         changelog = announcements.find("p").get_text("\n")
         changelog = changelog[0:1023]
+
         if changelog == "":
             changelog = str("Changelog was empty.")
+        
         return changelog
     except:
-        print("Failed to Get Changelog of " + str(workshopid))
+        print("Failed to get changelog of " + str(workshopid))
+
 
 
 # Update Database after Map Update.
@@ -118,15 +102,10 @@ def update_record(time_updated, userid, mapid):
     try:
         conn = sqlite3.connect("maplist.db")
         c = conn.cursor()
-        print("Connected to SQLite")
-
-        update = c.execute(
-            "UPDATE maplist SET updatetime=? WHERE userid=? AND mapid=?",
-            (time_updated, userid, mapid),
-        )
+        update = c.execute("UPDATE maplist SET updatetime=? WHERE userid=? AND mapid=?",(time_updated, userid, mapid),)
         conn.commit()
-        print("Record updated successfully ")
         c.close()
+        print("Record updated successfully.")
 
     except sqlite3.Error as error:
         print("Failed to update record from sqlite table", error)
@@ -134,7 +113,7 @@ def update_record(time_updated, userid, mapid):
         if conn:
             conn.close()
             print("Closed SQLite Connection.")
-    print("\n")
+
 
 
 # Deleting a record when $remove is used.
@@ -142,34 +121,27 @@ def deleteRecord(userid, workshopid):
     try:
         conn = sqlite3.connect("maplist.db")
         c = conn.cursor()
-        print("Connected to SQLite")
-
-        delete = c.execute(
-            "DELETE FROM maplist WHERE userid=? AND mapid=?",
-            (
-                userid,
-                workshopid,
-            ),
-        )
+        delete = c.execute("DELETE FROM maplist WHERE userid=? AND mapid=?", (userid, workshopid,))
         conn.commit()
-        print("Record deleted successfully ")
         c.close()
+        print("Record deleted successfully.")
 
     except sqlite3.Error as error:
-        print("Failed to delete record from sqlite table", error)
+        print("Failed to delete record from sqlite table ", error)
     finally:
         if conn:
             conn.close()
-            print("the sqlite connection is closed")
+            print("Closed SQLite Connection.")
+
 
 
 # Initiating the BotCrayon.
 @client.event
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
-    print("\n")
     game = discord.Game("$help")
     await client.change_presence(status=discord.Status.online, activity=game)
+
 
 
 # Checking Updates every 10 minutes.
@@ -195,63 +167,43 @@ async def check_update():
             else:
 
                 try:
-                    (
-                        name,
-                        workshop_link,
-                        upload,
-                        update,
-                        thumbnail,
-                        mapid,
-                        filename,
-                        time_updated,
-                    ) = get_mapinfo(workshopid)
+                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
                     print("Api Request Successful")
 
                     changelog = get_changelog(workshopid)
                     print("Changelog Request Successful")
 
+                    # Creates Embed for Update Message
                     embed = discord.Embed(title=name + " Updated!", color=0xFF6F00)
-                    embed.url = workshop_link
+                    embed.url = (workshop_link)
                     embed.add_field(name="Time Uploaded:", value=upload, inline=False)
                     embed.add_field(name="Time Updated:", value=update, inline=False)
                     embed.add_field(name="Change Log", value=changelog, inline=False)
                     embed.set_image(url=thumbnail)
-                    embed.set_footer(
-                        text="Map ID: " + mapid + "     " + "File Name: " + filename
-                    )
-
+                    embed.set_footer(text="Map ID: " + mapid + "     " + "File Name: " + filename)
                     print("Embed Creation Successful")
 
+                    # Sends Update Message to User
                     user = await client.fetch_user(userid)
                     await user.send(embed=embed)
 
                     # Updates Database
                     update_record(time_updated, userid, mapid)
 
+                    # Logs Update
                     channel = client.get_channel(channel_log)
                     await channel.send(str(name) + " Updated for " + str(userid))
-
-                    print(
-                        str(name)
-                        + " Updated! Checked on: "
-                        + str(datetime.now())
-                        + " for "
-                        + userid
-                    )
+                    print(str(name) + " Updated! Checked on: " + str(datetime.now()) + " for " + userid)
 
                 except:
-                    print(
-                        "Failed to send embed update of "
-                        + str(workshopid)
-                        + " for "
-                        + str(userid)
-                    )
+                    print("Failed to send embed update of " + str(workshopid) + " for " + str(userid))
 
         print("Finished Check at: " + str(datetime.now()))
         c.close()
 
     except:
         print("Failed 10 Minute Update Check.")
+
 
 
 # User Commands.
@@ -261,6 +213,8 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+
+
     # User asking for help.
     if message.content.startswith("$help"):
 
@@ -268,60 +222,47 @@ async def on_message(message):
         username = message.author
 
         user = await client.fetch_user(userid)
-        botPending = await user.send(
-            "Processing Request, This might take a few seconds."
-        )
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
-        embed = discord.Embed(
-            title="BotCrayon",
-            description="I am the Bot of CommonCrayon."
-            + "\n"
-            + "My main current function is to check for map updates on the CSGO Steam Workshop."
-            + "\n"
-            + " Please contact CommonCrayon#9275 if you have any issues",
-            color=0xFF6F00,
-        )
+        # $help Embed.
+        embed = discord.Embed(title="BotCrayon",
+            description="I am the Bot of CommonCrayon." + "\n"
+            + "My main current function is to check for map updates on the CSGO Steam Workshop." + "\n"
+            + " Please contact CommonCrayon#9275 if you have any issues", color=0xFF6F00)
         embed.set_thumbnail(url="https://i.imgur.com/laJnwhg.png")
-        embed.add_field(
-            name="$add [WorkshopID]",
-            value="Adds a workshop map to your update checker list."
-            + "\n"
-            + "(Only Public Visibility WorkshopIDs Work!)",
-            inline=False,
-        )
-        embed.add_field(
-            name="$remove [WorkshopID]",
-            value="Removes a workshop map from your update checker list.",
-            inline=False,
-        )
-        embed.add_field(
-            name="$list",
-            value="Displays the list of maps you have on your update checker.",
-            inline=False,
-        )
-        embed.add_field(
-            name="$search [WorkshopID]",
-            value="Searches for a workshop map.",
-            inline=False,
-        )
-        embed.add_field(
-            name="$changelog [WorkshopID]",
-            value="Displays only the changelog for a workshop map."
-            + "\n"
-            + "(Can not be larger than 1024 characters)",
-            inline=False,
-        )
-        embed.set_footer(
-            text="BotCrayon made by CommonCrayon. Special thanks to Fluffy & Squidski"
-        )
 
+        # $add
+        embed.add_field(name="$add [WorkshopID]",
+            value="Adds a workshop map to your update checker list." + "\n"
+            + "(Only Public Visibility WorkshopIDs Work!)", inline=False)
+        
+        # $remove
+        embed.add_field(name="$remove [WorkshopID]", value="Removes a workshop map from your update checker list.", inline=False)
+
+        # $list
+        embed.add_field(name="$list", value="Displays the list of maps you have on your update checker.", inline=False)
+
+        # $search
+        embed.add_field(name="$search [WorkshopID]", value="Searches for a workshop map.", inline=False)
+
+        # $changelog
+        embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map." + "\n"
+            + "(Can not be larger than 1024 characters)", inline=False)
+        
+        # Footer
+        embed.set_footer(text="BotCrayon made by CommonCrayon. Special thanks to Fluffy & Squidski")
+
+        # Sends Message
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
 
+        # Logs Use
         channel = client.get_channel(channel_log)
         await channel.send(str(username) + " requested help.")
         print(str(username) + " requested help.")
+
+
 
     # Adding to  Map List.
     if message.content.startswith("$add"):
@@ -331,48 +272,60 @@ async def on_message(message):
         username = message.author
 
         user = await client.fetch_user(userid)
-        botPending = await user.send(
-            "Processing Request, This might take a few seconds."
-        )
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
         # Tries to add a map to the list.
         try:
-            (
-                name,
-                workshop_link,
-                upload,
-                update,
-                thumbnail,
-                mapid,
-                filename,
-                time_updated,
-            ) = get_mapinfo(workshopid)
             conn = sqlite3.connect("maplist.db")
             c = conn.cursor()
-            c.execute(
-                "INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)",
-                (userid, mapid, time_updated),
-            )
-            conn.commit()
-            conn.close()
+            sqlite_select_query = """SELECT * from maplist"""
+            c.execute(sqlite_select_query)
+            records = c.fetchall()
+            redundant_value = 0
 
-            # Tell user that the map was added.
-            embed = discord.Embed(title=name + " Added!", color=0xFF6F00)
-            print(str(name) + " added by " + str(username))
+            for row in records:
+                user_testid = row[0]
+                map_testid = row[1]
+                # Checking if the map is in the Database.
+                if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
+                    redundant_value = 1
 
-            # Logs to Dev Channel in Discord.
-            channel = client.get_channel(channel_log)
-            await channel.send(str(username) + " Added " + str(name))
+        except:
+            print("Failed Database check on $add " + str(username))
+
+        try:
+            # If the map was not already added.
+            if redundant_value == 0:
+                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                conn = sqlite3.connect("maplist.db")
+                c = conn.cursor()
+                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
+                conn.commit()
+                conn.close()
+
+                # Tell user that the map was added.
+                embed = discord.Embed(title=name + " Added!", color=0xFF6F00)
+                print(str(name) + " added by " + str(username))
+
+                # Logs to Dev Channel in Discord.
+                channel = client.get_channel(channel_log)
+                await channel.send(str(username) + " Added " + str(name))
+
+            # If the map was already added.
+            if redundant_value == 1:
+                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+
+                embed = discord.Embed(title=(name + " is already on your list."), color=0xFF6F00)
+                print(str(username) + " tried to add already added map " + str(name))
+
+                # Logs to Dev Channel in Discord.
+                channel = client.get_channel(channel_log)
+                await channel.send(str(username) + " tried to add already added map " + str(name))
 
         except:
             # Tells user that adding the map failed.
-            embed = discord.Embed(
-                title="Failed to add.",
-                description="Incorrect WorkshopID or Try Again."
-                + "\n"
-                + "(Remember! Only Public Visibility WorkshopIDs Work!)",
-                color=0xFF6F00,
-            )
+            embed = discord.Embed(title="Failed to add.", description="Incorrect WorkshopID or Try Again." + "\n"
+                + "(Remember! Only Public Visibility WorkshopIDs Work!)", color=0xFF6F00,)
             print("Failed to add " + str(workshopid) + " by " + str(username))
 
             # Logs to Dev Channel in Discord.
@@ -383,7 +336,8 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
-        print("\n")
+
+
 
     # Removing from Map List.
     if message.content.startswith("$remove"):
@@ -393,48 +347,71 @@ async def on_message(message):
         username = message.author
 
         user = await client.fetch_user(userid)
-        botPending = await user.send(
-            "Processing Request, This might take a few seconds."
-        )
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
+
+        # Setting this embed incase the database is not working.
+        #embed = discord.Embed(title="Failed to Remove.", description="Database Failed, Try Again Later.", color=0xFF6F00)
 
         # Tries to remove a map from the list.
-        try:
-            # Validates whether the WorkshopID exists.
-            (
-                name,
-                workshop_link,
-                upload,
-                update,
-                thumbnail,
-                mapid,
-                filename,
-                time_updated,
-            ) = get_mapinfo(workshopid)
+        async def get_remove():
+            try:
+                conn = sqlite3.connect("maplist.db")
+                c = conn.cursor()
+                sqlite_select_query = """SELECT * from maplist"""
+                c.execute(sqlite_select_query)
+                records = c.fetchall()
 
-            # Sends Confirmation of Removal.
-            embed = discord.Embed(title=name + " Removed.", color=0xFF6F00)
+                # Setting this embed incase we find nothing in the database when searching.
+                embed = discord.Embed(title="Failed to Remove.", description="WorkshopID is not on your List.", color=0xFF6F00)
 
-            # Removes the record off the database.
-            deleteRecord(userid, workshopid)
+                for row in records:
+                    user_testid = row[0]
+                    map_testid = row[1]
+                    try:
+                        # Checking if the map is in the Database.
+                        if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
+                            # Checking if the map is Public on the Workshop.
+                            try:
+                                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
 
-            # Logs Removal of Map.
-            print(str(name) + " removed by " + str(username))
-            channel = client.get_channel(channel_log)
-            await channel.send(str(username) + " Removed " + str(workshopid))
-        except:
-            embed = discord.Embed(
-                title="Failed to Remove.",
-                description="Incorrect WorkshopID or Try Again.",
-                color=0xFF6F00,
-            )
-            print("Failed removal of " + str(workshopid) + " " + str(username))
-            channel = client.get_channel(channel_log)
-            await channel.send(str(username) + " Failed to Remove " + str(workshopid))
+                                # Sends Confirmation of Removal.
+                                embed = discord.Embed(title=name + " Removed.", color=0xFF6F00)
 
-        # Sends message to user.
-        user = await client.fetch_user(userid)
-        await user.send(embed=embed)
-        await botPending.delete()
+                                # Logs Removal of Map.
+                                print(str(name) + " removed by " + str(username))
+                                channel = client.get_channel(channel_log)
+                                await channel.send(str(username) + " Removed " + str(workshopid))
+
+                            # When the map is not Public on the Workshop.
+                            except:
+                                # Sends Confirmation of Removal.
+                                embed = discord.Embed(title=workshopid + " Removed.", color=0xFF6F00)
+
+                                # Logs Removal of Map.
+                                print(str(workshopid) + " removed by " + str(username))
+                                channel = client.get_channel(channel_log)
+                                await channel.send(str(username) + " Removed " + str(workshopid))
+
+                            # Removes the record off the database.
+                            deleteRecord(userid, workshopid)
+
+                    except:
+                        embed = discord.Embed(title="Failed to Remove.", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
+
+                        print("Failed removal of " + str(workshopid) + " " + str(username))
+                        channel = client.get_channel(channel_log)
+                        await channel.send(str(username) + " Failed to Remove " + str(workshopid))
+            except:
+                print("Failed get_remove function for " + str(username))
+
+            # Sends message to user.
+            user = await client.fetch_user(userid)
+            await user.send(embed=embed)
+            await botPending.delete()
+
+        await get_remove()
+
+
 
     # Displays User's Map Update Checker List.
     if message.content.startswith("$list"):
@@ -444,7 +421,7 @@ async def on_message(message):
         maps = []
 
         user = await client.fetch_user(userid)
-        botPending = await user.send("Retrieving List, This might take a few seconds.")
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
         # Getting the List of Maps for the User.
         async def get_list():
@@ -457,29 +434,21 @@ async def on_message(message):
 
                 for row in records:
                     testid = row[0]
-                    if int(userid) == int(testid):
-                        workshopid = row[1]
-                        (
-                            name,
-                            workshop_link,
-                            upload,
-                            update,
-                            thumbnail,
-                            mapid,
-                            filename,
-                            time_updated,
-                        ) = get_mapinfo(workshopid)
-                        maps.append(name + " = " + workshopid)
+                    try:
+                        if int(userid) == int(testid):
+                            workshopid = row[1]
+                            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                            maps.append(name + " = " + workshopid)
+                    except:
+                        maps.append("**WorkshopID is not Public = " + workshopid + "**")
                 c.close()
 
             except sqlite3.Error as error:
-                # Incase there's an error.
                 print("Failed to read data from sqlite table", error)
             finally:
                 if conn:
                     conn.close()
-                    print("The SQLite connection is closed")
-
+                    print("SQLite Connection Closed")
         await get_list()
 
         # Creating Message and Embed.
@@ -491,26 +460,19 @@ async def on_message(message):
 
             # Creating Embed.
             if user_list == "":
-                user_list = str(
-                    "Your List is Empty." + "\n" + "Add a Map by $add [WorkshopID]"
-                )
+                user_list = str("Your List is Empty." + "\n" + "Add a Map by $add [WorkshopID]")
 
-            embed = discord.Embed(
-                title="Update Checker List", description=user_list, color=0xFF6F00
-            )
+            embed = discord.Embed(title="Update Checker List", description=user_list, color=0xFF6F00)
 
             # Logs the Retreival of the List.
-            print(str(username) + " requested list, containing: ")
-            print(maps)
+            print(str(username) + " Requested list")
             channel = client.get_channel(channel_log)
             await channel.send(str(username) + " requested list, containing: ")
             await channel.send(str(user_list))
 
         except:
             # Informs user of error.
-            embed = discord.Embed(
-                title="Failed to Retrieve. Try Again Later.", color=0xFF6F00
-            )
+            embed = discord.Embed(title="Failed to Retrieve. Try Again Later.", color=0xFF6F00)
 
             # Logs Error.
             print(str(username) + " failed list request.")
@@ -522,6 +484,8 @@ async def on_message(message):
         await user.send(embed=embed)
         await botPending.delete()
 
+
+
     # Displays only the changelog of the workshopid entered.
     if message.content.startswith("$changelog"):
 
@@ -530,22 +494,11 @@ async def on_message(message):
         username = message.author
 
         user = await client.fetch_user(userid)
-        botPending = await user.send(
-            "Processing Request, This might take a few seconds."
-        )
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
         try:
             # Getting Map information and Changelog.
-            (
-                name,
-                workshop_link,
-                upload,
-                update,
-                thumbnail,
-                mapid,
-                filename,
-                time_updated,
-            ) = get_mapinfo(workshopid)
+            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
             changelog = get_changelog(workshopid)
 
             # Creating Embed.
@@ -558,32 +511,23 @@ async def on_message(message):
             # Logs the use of Changelog.
             print(name + " changelog by " + str(username))
             channel = client.get_channel(channel_log)
-            await channel.send(
-                "Retrieving Changelog of " + str(name) + " by " + str(username)
-            )
+            await channel.send("Retrieving Changelog of " + str(name) + " by " + str(username))
 
         except:
             # Informs user of error.
-            embed = discord.Embed(
-                title="Error Retrieving Changelog",
-                description="Incorrect WorkshopID or Try Again.",
-                color=0xFF6F00,
-            )
+            embed = discord.Embed(title="Error Retrieving Changelog", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
 
             # Logs Error.
             print("Failed changelog of " + str(workshopid) + " " + str(username))
             channel = client.get_channel(channel_log)
-            await channel.send(
-                "Failed Retrieving Changelog of "
-                + str(workshopid)
-                + " by "
-                + str(username)
-            )
+            await channel.send("Failed Retrieving Changelog of " + str(workshopid) + " by " + str(username))
 
         # Sends message to user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+
+
 
     # Searches for Maps using WorkshopID.
     if message.content.startswith("$search"):
@@ -593,22 +537,11 @@ async def on_message(message):
         username = message.author
 
         user = await client.fetch_user(userid)
-        botPending = await user.send(
-            "Processing Request, This might take a few seconds."
-        )
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
         try:
             # Getting Map information and Changelog.
-            (
-                name,
-                workshop_link,
-                upload,
-                update,
-                thumbnail,
-                mapid,
-                filename,
-                time_updated,
-            ) = get_mapinfo(workshopid)
+            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
             changelog = get_changelog(workshopid)
 
             # Creating Embed.
@@ -618,9 +551,7 @@ async def on_message(message):
             embed.add_field(name="Time Updated:", value=update, inline=False)
             embed.add_field(name="Change Log", value=changelog, inline=False)
             embed.set_image(url=thumbnail)
-            embed.set_footer(
-                text="Map ID: " + mapid + "     " + "File Name: " + filename
-            )
+            embed.set_footer(text="Map ID: " + mapid + "     " + "File Name: " + filename)
 
             # Logs the Search.
             print(str(name) + " Searched by " + str(username))
@@ -629,23 +560,18 @@ async def on_message(message):
 
         except:
             # Informs user of error.
-            embed = discord.Embed(
-                title="Error Searching",
-                description="Incorrect WorkshopID or Try Again.",
-                color=0xFF6F00,
-            )
+            embed = discord.Embed(title="Error Searching", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
 
             # Logs Error.
             print("Error Searching " + str(workshopid) + " by " + str(username))
             channel = client.get_channel(channel_log)
-            await channel.send(
-                "Error Searching " + str(workshopid) + " by " + str(username)
-            )
+            await channel.send("Error Searching " + str(workshopid) + " by " + str(username))
 
         # Sends message to user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+
 
 
 # Executing BotCrayon.
