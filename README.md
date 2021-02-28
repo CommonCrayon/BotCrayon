@@ -4,6 +4,7 @@ I am BotCrayon, created by CommonCrayon. My main current function is to check fo
 TO USE:
 Create your own:
 1 - bot_token.txt = Insert your bot token here.
-2 - log_channel = Here your bot will log interactions with users.
+2 - log_channel.txt = Insert the channel id where you want the Bot to log.
+3 - steamkey.txt = Insert your Steam API key here. 
 
 Have Fun!
