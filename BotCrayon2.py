@@ -16,6 +16,10 @@ client = discord.Client()
 log_channel_file = open("log_channel.txt")
 channel_log = int(log_channel_file.read())
 
+# Steam Api Key
+steamkey_file = open("steamkey.txt")
+SteamApiKey = str(steamkey_file.read())
+
 
 
 # Creating the database for the Map list.
@@ -243,7 +247,7 @@ async def on_message(message):
         embed.add_field(name="$list", value="Displays the list of maps you have on your update checker.", inline=False)
 
         # $search
-        embed.add_field(name="$search [WorkshopID]", value="Searches for a workshop map.", inline=False)
+        embed.add_field(name="$search [WorkshopID] or [SearchText]", value="Searches for a workshop map.", inline=False)
 
         # $changelog
         embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map." + "\n"
@@ -267,7 +271,7 @@ async def on_message(message):
     # Adding to  Map List.
     if message.content.startswith("$add"):
 
-        workshopid = message.content.strip("$add ")
+        workshopid = message.content[5:]
         userid = message.author.id
         username = message.author
 
@@ -342,7 +346,7 @@ async def on_message(message):
     # Removing from Map List.
     if message.content.startswith("$remove"):
 
-        workshopid = message.content.strip("$remove ")
+        workshopid = message.content[8:]
         userid = message.author.id
         username = message.author
 
@@ -489,7 +493,7 @@ async def on_message(message):
     # Displays only the changelog of the workshopid entered.
     if message.content.startswith("$changelog"):
 
-        workshopid = message.content.strip("$changelog ")
+        workshopid = message.content[11:]
         userid = message.author.id
         username = message.author
 
@@ -532,40 +536,110 @@ async def on_message(message):
     # Searches for Maps using WorkshopID.
     if message.content.startswith("$search"):
 
-        workshopid = message.content.strip("$search ")
+        workshopid = message.content[8:]
+        integer_check = workshopid.isdecimal()
         userid = message.author.id
         username = message.author
 
         user = await client.fetch_user(userid)
         botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
-        try:
-            # Getting Map information and Changelog.
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-            changelog = get_changelog(workshopid)
+        # If the search is for a workshopID
+        if integer_check == True:
+            try:
+                # Getting Map information and Changelog.
+                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                changelog = get_changelog(workshopid)
 
-            # Creating Embed.
-            embed = discord.Embed(title=name, color=0xFF6F00)
-            embed.url = workshop_link
-            embed.add_field(name="Time Uploaded:", value=upload, inline=False)
-            embed.add_field(name="Time Updated:", value=update, inline=False)
-            embed.add_field(name="Change Log", value=changelog, inline=False)
-            embed.set_image(url=thumbnail)
-            embed.set_footer(text="Map ID: " + mapid + "     " + "File Name: " + filename)
+                # Creating Embed.
+                embed = discord.Embed(title=name, color=0xFF6F00)
+                embed.url = workshop_link
+                embed.add_field(name="Time Uploaded:", value=upload, inline=False)
+                embed.add_field(name="Time Updated:", value=update, inline=False)
+                embed.add_field(name="Change Log", value=changelog, inline=False)
+                embed.set_image(url=thumbnail)
+                embed.set_footer(text="Map ID: " + mapid + "     " + "File Name: " + filename)
 
-            # Logs the Search.
-            print(str(name) + " Searched by " + str(username))
-            channel = client.get_channel(channel_log)
-            await channel.send(str(name) + " Searched by " + str(username))
+                # Logs the Search.
+                print(str(name) + " Searched by " + str(username))
+                channel = client.get_channel(channel_log)
+                await channel.send(str(name) + " Searched by " + str(username))
 
-        except:
-            # Informs user of error.
-            embed = discord.Embed(title="Error Searching", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
+            except:
+                # Informs user of error.
+                embed = discord.Embed(title="Error Searching", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
 
-            # Logs Error.
-            print("Error Searching " + str(workshopid) + " by " + str(username))
-            channel = client.get_channel(channel_log)
-            await channel.send("Error Searching " + str(workshopid) + " by " + str(username))
+                # Logs Error.
+                print("Error Searching " + str(workshopid) + " by " + str(username))
+                channel = client.get_channel(channel_log)
+                await channel.send("Error Searching " + str(workshopid) + " by " + str(username))
+        
+        # If the search is for a keyword
+        else:
+            increment = 1
+            page = 1
+            end_loop = 1
+            searchmaps = []
+            query = ""
+
+            try:
+                # Checks total number
+                url = "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/"
+                payload = {"key": (SteamApiKey), "query_type": 0, "page": increment, "appid":730, "search_text": (workshopid), "totalonly": True}
+                response = requests.get(url, payload)
+                data = response.json()
+                total = data["response"]["total"]
+
+                if total == 0:
+                    # Creates Embed
+                    embed = discord.Embed(title="Results for: " + str(workshopid), description=str("No Results Found"), color=0xFF6F00)
+                    embed.url = ("https://steamcommunity.com/workshop/browse/?appid=730&searchtext=" + str(workshopid))
+                    
+                    # Logs Search
+                    print(str(username) + " Searched for " + str(workshopid))
+                    channel = client.get_channel(channel_log)
+                    await channel.send(str(username) + " Searched for " + str(workshopid))
+
+                else:
+                    while increment <= 3:
+                        url = "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/"
+                        payload = {"key": (SteamApiKey), "query_type": 0, "page": increment, "appid":730, "search_text": (workshopid)}
+                        response = requests.get(url, payload)
+                        data = response.json()
+                        result = data["response"]["publishedfiledetails"][0]["publishedfileid"]
+
+                        (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(result)
+                        filename = filename[-3:]
+
+                        if filename == "bsp":
+                            searchmaps.append("**" + name  + " = "  + result + "**" + "\n" + workshop_link)
+                            increment += 1
+
+                        end_loop += 1
+                        page += 1
+                        if end_loop == 10:
+                            increment = 4
+
+                    for searchmap in searchmaps:
+                        query += f"{searchmap}\n"
+
+                    # Creates Embed
+                    embed = discord.Embed(title="Results for: " + str(workshopid), description=str(query), color=0xFF6F00)
+                    embed.url = ("https://steamcommunity.com/workshop/browse/?appid=730&searchtext=" + str(workshopid))
+                    embed.set_footer(text=str(total) + " Results Found")
+
+                    # Logs Search
+                    print(str(username) + " Searched for " + str(workshopid))
+                    channel = client.get_channel(channel_log)
+                    await channel.send(str(username) + " Searched for " + str(workshopid))
+
+            except:
+                embed = discord.Embed(title="Failed Search For: " + str(workshopid), description="Try Again", color=0xFF6F00)
+
+                # Logs Error
+                print(str(username) + " Failed Search for " + str(workshopid))
+                channel = client.get_channel(channel_log)
+                await channel.send(str(username) + " Failed Search for " + str(workshopid))
 
         # Sends message to user.
         user = await client.fetch_user(userid)
