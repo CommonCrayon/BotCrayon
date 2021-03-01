@@ -243,6 +243,9 @@ async def on_message(message):
         # $remove
         embed.add_field(name="$remove [WorkshopID]", value="Removes a workshop map from your update checker list.", inline=False)
 
+        # $purge
+        embed.add_field(name="$purge", value="Removes ALL workshop maps from your update checker list.", inline=False)
+
         # $list
         embed.add_field(name="$list", value="Displays the list of maps you have on your update checker.", inline=False)
 
@@ -252,6 +255,10 @@ async def on_message(message):
         # $changelog
         embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map." + "\n"
             + "(Can not be larger than 1024 characters)", inline=False)
+        
+        # $collection
+        embed.add_field(name="$collection [WorkshopID]", value="Displays a whole workshop Collection." + "\n"
+            + "(Collections with more than 40 maps will be trimmed.)", inline=False)
         
         # Footer
         embed.set_footer(text="BotCrayon made by CommonCrayon. Special thanks to Fluffy & Squidski")
@@ -415,6 +422,78 @@ async def on_message(message):
 
         await get_remove()
 
+    # Initial Purge Embed
+    if message.content.startswith("$purge"):
+        userid = message.author.id
+        username = message.author
+
+        embed = discord.Embed(title="Use '$confirm purge' to confirm purge",description="Remember this will remove all maps!", color=0xFF6F00)
+
+        user = await client.fetch_user(userid)
+        await user.send(embed=embed)  
+
+        print(str(username) + " Requested Initial Purge.")
+        channel = client.get_channel(channel_log)
+        await channel.send(str(username) + " Requested Initial Purge.")      
+
+        
+    # Remove all the maps from the list
+    if message.content.startswith("$confirm purge"):
+        userid = message.author.id
+        username = message.author
+        empty = True
+        user = await client.fetch_user(userid)
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
+
+        try:
+            conn = sqlite3.connect("maplist.db")
+            c = conn.cursor()
+            sqlite_select_query = """SELECT * from maplist"""
+            c.execute(sqlite_select_query)
+            records = c.fetchall()
+
+            for row in records:
+                testid = row[0]
+                if int(userid) == int(testid):
+                    empty = False
+                        
+            if empty == False:
+                for row in records:
+                    delete = c.execute("DELETE FROM maplist WHERE userid=?", (userid,))
+
+                    embed = discord.Embed(title="Purged successfully", color=0xFF6F00)
+        
+                print(str(username) + " Purged successfully")
+                channel = client.get_channel(channel_log)
+                await channel.send(str(username) + " Purged successfully")
+
+            else:
+                embed = discord.Embed(title="Failed Purged",description="List is already empty!", color=0xFF6F00) 
+
+                print(str(username) + " Tried Purge, but list is already empty")
+                channel = client.get_channel(channel_log)
+                await channel.send(str(username) + " Tried Purge, but list is already empty")             
+            
+            conn.commit()
+            c.close()
+
+        except sqlite3.Error as error:
+            print(str(username) +  " Failed to delete record from sqlite table ", error)
+            embed = discord.Embed(title="Failed Purged",description="Try Again!", color=0xFF6F00)
+
+            print(str(username) + " Failed Purge.")
+            channel = client.get_channel(channel_log)
+            await channel.send(str(username) + " Failed Purge.")                 
+        finally:
+            if conn:
+                conn.close()
+                print("Closed SQLite Connection.")
+
+        # Sends the message.
+        user = await client.fetch_user(userid)
+        await user.send(embed=embed)        
+        await botPending.delete()
+    
 
 
     # Displays User's Map Update Checker List.
@@ -642,6 +721,67 @@ async def on_message(message):
                 await channel.send(str(username) + " Failed Search for " + str(workshopid))
 
         # Sends message to user.
+        user = await client.fetch_user(userid)
+        await user.send(embed=embed)
+        await botPending.delete()
+
+
+
+    # Searches for Collection using WorkshopID.
+    if message.content.startswith("$collection"):
+
+        workshopid = message.content[12:]
+        userid = message.author.id
+        username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
+
+        try:
+
+            payload = {"collectioncount": 1, "publishedfileids[0]": [str(workshopid)]}
+            r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/", data=payload)
+            data = r.json()
+            collectionmaps = data["response"]["collectiondetails"][0]["children"]
+            collectionids = [child["publishedfileid"] for child in collectionmaps]
+            collection = []
+
+            i = 0
+            for collectionid in collectionids:
+                try:
+                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(collectionids[i])
+                except:
+                    name = "UNKNOWN"
+                collection.append(str(name) + " = "  + str(collectionids[i]))
+                i += 1
+
+            entries = len(collection) 
+
+            collection_list = ""
+            for map in collection:
+                collection_list += f"{map}\n"
+            collection_list = collection_list[0:1023]
+
+            # Creates Embed
+            embed = discord.Embed(title="Collection Map List", description=collection_list, color=0xFF6F00)
+            embed.url = ("https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid))
+            if entries > 35:
+                embed.set_footer(text="Warning! Approximately only 40 maps can be displayed")
+
+            # Logs Usage
+            print(str(username) + " Requested Collection " + str(workshopid))
+            channel = client.get_channel(channel_log)
+            await channel.send(str(username) + " Retrieved Collection " + str(workshopid))
+
+        except:
+            # Created Embed
+            embed = discord.Embed(title="Failed to Retrieve Collection", description="Incorrect CollectionID or Try Again", color=0xFF6F00)
+
+            # Logs Usage
+            print(str(username) + " Failed Collection Request " + str(workshopid))
+            channel = client.get_channel(channel_log)
+            await channel.send(str(username) + " Failed Collection Request " + str(workshopid))
+
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
