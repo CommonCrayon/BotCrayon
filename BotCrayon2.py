@@ -139,6 +139,59 @@ def deleteRecord(userid, workshopid):
 
 
 
+# Tries to add a map to the list.
+def add_workshopid(userid, username, workshopid):
+    descrip = ""
+    name = ""
+    try:
+        conn = sqlite3.connect("maplist.db")
+        c = conn.cursor()
+        sqlite_select_query = """SELECT * from maplist"""
+        c.execute(sqlite_select_query)
+        records = c.fetchall()
+        redundant_value = 0
+
+        for row in records:
+            user_testid = row[0]
+            map_testid = row[1]
+            # Checking if the map is in the Database.
+            if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
+                redundant_value = 1
+
+    except:
+        print("Failed Database check on $add " + str(username))
+
+    try:
+        # If the map was not already added.
+        if redundant_value == 0:
+            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+            conn = sqlite3.connect("maplist.db")
+            c = conn.cursor()
+            c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
+            conn.commit()
+            conn.close()
+
+            answer = (str(name) + " Added")
+            log = str(name) + " Added by " + str(username)
+
+        # If the map was already added.
+        if redundant_value == 1:
+            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+
+            answer = (str(name) + " is already on your list.")
+            log = (str(username) + " tried to add already added map " + str(name))
+
+
+    except:
+        # Tells user that adding the map failed.
+
+        answer = ("Failed to add " + str(workshopid))
+        descrip = "Incorrect WorkshopID or Try Again." + "\n" + "(Remember! Only Public Visibility WorkshopIDs Work!)"
+        log = (str(username) + " Failed to Add " + str(workshopid))
+
+    return(name, answer, log, descrip)
+
+
 # Initiating the BotCrayon.
 @client.event
 async def on_ready():
@@ -232,7 +285,7 @@ async def on_message(message):
         embed = discord.Embed(title="BotCrayon",
             description="I am the Bot of CommonCrayon." + "\n"
             + "My main current function is to check for map updates on the CSGO Steam Workshop." + "\n"
-            + " Please contact CommonCrayon#9275 if you have any issues", color=0xFF6F00)
+            + " Please contact CommonCrayon#9275 for issues.", color=0xFF6F00)
         embed.set_thumbnail(url="https://i.imgur.com/laJnwhg.png")
 
         # $add
@@ -257,8 +310,12 @@ async def on_message(message):
             + "(Can not be larger than 1024 characters)", inline=False)
         
         # $collection
-        embed.add_field(name="$collection [WorkshopID]", value="Displays a whole workshop Collection." + "\n"
+        embed.add_field(name="$collection [CollectionID]", value="Displays a whole workshop Collection." + "\n"
             + "(Collections with more than 40 maps will be trimmed.)", inline=False)
+
+        # $collectionadd
+        embed.add_field(name="$collectionadd [CollectionID]", value="Adds a whole workshop Collection to your update checker list." + "\n"
+            + "(Collections with more than 20 maps will be trimmed.)", inline=False)
         
         # Footer
         embed.set_footer(text="BotCrayon made by CommonCrayon. Special thanks to Fluffy & Squidski")
@@ -272,6 +329,7 @@ async def on_message(message):
         channel = client.get_channel(channel_log)
         await channel.send(str(username) + " requested help.")
         print(str(username) + " requested help.")
+        return
 
 
 
@@ -285,68 +343,20 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
-        # Tries to add a map to the list.
-        try:
-            conn = sqlite3.connect("maplist.db")
-            c = conn.cursor()
-            sqlite_select_query = """SELECT * from maplist"""
-            c.execute(sqlite_select_query)
-            records = c.fetchall()
-            redundant_value = 0
+        (name, answer, log, descrip) = add_workshopid(userid, username, workshopid)
 
-            for row in records:
-                user_testid = row[0]
-                map_testid = row[1]
-                # Checking if the map is in the Database.
-                if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
-                    redundant_value = 1
-
-        except:
-            print("Failed Database check on $add " + str(username))
-
-        try:
-            # If the map was not already added.
-            if redundant_value == 0:
-                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-                conn = sqlite3.connect("maplist.db")
-                c = conn.cursor()
-                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
-                conn.commit()
-                conn.close()
-
-                # Tell user that the map was added.
-                embed = discord.Embed(title=name + " Added!", color=0xFF6F00)
-                print(str(name) + " added by " + str(username))
-
-                # Logs to Dev Channel in Discord.
-                channel = client.get_channel(channel_log)
-                await channel.send(str(username) + " Added " + str(name))
-
-            # If the map was already added.
-            if redundant_value == 1:
-                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-
-                embed = discord.Embed(title=(name + " is already on your list."), color=0xFF6F00)
-                print(str(username) + " tried to add already added map " + str(name))
-
-                # Logs to Dev Channel in Discord.
-                channel = client.get_channel(channel_log)
-                await channel.send(str(username) + " tried to add already added map " + str(name))
-
-        except:
-            # Tells user that adding the map failed.
-            embed = discord.Embed(title="Failed to add.", description="Incorrect WorkshopID or Try Again." + "\n"
-                + "(Remember! Only Public Visibility WorkshopIDs Work!)", color=0xFF6F00,)
-            print("Failed to add " + str(workshopid) + " by " + str(username))
-
-            # Logs to Dev Channel in Discord.
-            channel = client.get_channel(channel_log)
-            await channel.send(str(username) + " Failed to Add " + str(workshopid))
+        embed = discord.Embed(title=answer,description=descrip, color=0xFF6F00)
 
         # Sends the message the user.
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+
+        # Logs Process
+        print(log)
+        channel = client.get_channel(channel_log)
+        await channel.send(log)
+        return
 
 
 
@@ -356,12 +366,11 @@ async def on_message(message):
         workshopid = message.content[8:]
         userid = message.author.id
         username = message.author
+        integer_check = workshopid.isdecimal()
 
         user = await client.fetch_user(userid)
         botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
-        # Setting this embed incase the database is not working.
-        #embed = discord.Embed(title="Failed to Remove.", description="Database Failed, Try Again Later.", color=0xFF6F00)
 
         # Tries to remove a map from the list.
         async def get_remove():
@@ -375,43 +384,51 @@ async def on_message(message):
                 # Setting this embed incase we find nothing in the database when searching.
                 embed = discord.Embed(title="Failed to Remove.", description="WorkshopID is not on your List.", color=0xFF6F00)
 
-                for row in records:
-                    user_testid = row[0]
-                    map_testid = row[1]
-                    try:
-                        # Checking if the map is in the Database.
-                        if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
-                            # Checking if the map is Public on the Workshop.
-                            try:
-                                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                if integer_check == True:
+                    for row in records:
+                        user_testid = row[0]
+                        map_testid = row[1]
+                        try:
+                            # Checking if the map is in the Database.
+                            if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
+                                # Checking if the map is Public on the Workshop.
+                                try:
+                                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
 
-                                # Sends Confirmation of Removal.
-                                embed = discord.Embed(title=name + " Removed.", color=0xFF6F00)
+                                    # Sends Confirmation of Removal.
+                                    embed = discord.Embed(title=name + " Removed.", color=0xFF6F00)
 
-                                # Logs Removal of Map.
-                                print(str(name) + " removed by " + str(username))
-                                channel = client.get_channel(channel_log)
-                                await channel.send(str(username) + " Removed " + str(workshopid))
+                                    # Logs Removal of Map.
+                                    print(str(name) + " removed by " + str(username))
+                                    channel = client.get_channel(channel_log)
+                                    await channel.send(str(username) + " Removed " + str(workshopid))
 
-                            # When the map is not Public on the Workshop.
-                            except:
-                                # Sends Confirmation of Removal.
-                                embed = discord.Embed(title=workshopid + " Removed.", color=0xFF6F00)
+                                # When the map is not Public on the Workshop.
+                                except:
+                                    # Sends Confirmation of Removal.
+                                    embed = discord.Embed(title=workshopid + " Removed.", color=0xFF6F00)
 
-                                # Logs Removal of Map.
-                                print(str(workshopid) + " removed by " + str(username))
-                                channel = client.get_channel(channel_log)
-                                await channel.send(str(username) + " Removed " + str(workshopid))
+                                    # Logs Removal of Map.
+                                    print(str(workshopid) + " removed by " + str(username))
+                                    channel = client.get_channel(channel_log)
+                                    await channel.send(str(username) + " Removed " + str(workshopid))
 
-                            # Removes the record off the database.
-                            deleteRecord(userid, workshopid)
+                                # Removes the record off the database.
+                                deleteRecord(userid, workshopid)
 
-                    except:
-                        embed = discord.Embed(title="Failed to Remove.", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
+                        except:
+                            embed = discord.Embed(title="Failed to Remove.", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
 
-                        print("Failed removal of " + str(workshopid) + " " + str(username))
-                        channel = client.get_channel(channel_log)
-                        await channel.send(str(username) + " Failed to Remove " + str(workshopid))
+                            print("Failed removal of " + str(workshopid) + " " + str(username))
+                            channel = client.get_channel(channel_log)
+                            await channel.send(str(username) + " Failed to Remove " + str(workshopid))
+                else:
+                    embed = discord.Embed(title="Failed to Remove.", description=str(workshopid) + " is not a WorkshopID.", color=0xFF6F00)
+                    
+                    print("Failed removal of " + str(workshopid) + " " + str(username))
+                    channel = client.get_channel(channel_log)
+                    await channel.send(str(username) + " Failed to Remove " + str(workshopid))
+
             except:
                 print("Failed get_remove function for " + str(username))
 
@@ -421,6 +438,9 @@ async def on_message(message):
             await botPending.delete()
 
         await get_remove()
+        return
+
+
 
     # Initial Purge Embed
     if message.content.startswith("$purge"):
@@ -434,7 +454,8 @@ async def on_message(message):
 
         print(str(username) + " Requested Initial Purge.")
         channel = client.get_channel(channel_log)
-        await channel.send(str(username) + " Requested Initial Purge.")      
+        await channel.send(str(username) + " Requested Initial Purge.")     
+        return 
 
         
     # Remove all the maps from the list
@@ -493,6 +514,7 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         await user.send(embed=embed)        
         await botPending.delete()
+        return
     
 
 
@@ -566,6 +588,7 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+        return
 
 
 
@@ -609,6 +632,7 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+        return
 
 
 
@@ -724,6 +748,88 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+        return
+
+
+
+    # Adds Collection to the Update Checker List using CollectionID.
+    if message.content.startswith("$collectionadd"):
+
+        collection_input = message.content[15:]
+        userid = message.author.id
+        username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
+
+        footer_display = False
+        url_display = False
+        collection_embed = []
+        print("\n" + str(username) + " Adding Collection " + str(collection_input))
+
+        # Getting Collection Name
+        try:
+            payload = {"itemcount": 1, "publishedfileids[0]": [str(collection_input)]}
+            r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
+            data = r.json()
+            collection_name = data["response"]["publishedfiledetails"][0]["title"]
+        except:
+            collection_name = "Collection Map List"
+
+        try:
+            payload = {"collectioncount": 1, "publishedfileids[0]": [str(collection_input)]}
+            r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/", data=payload)
+            data = r.json()
+            collectionmaps = data["response"]["collectiondetails"][0]["children"]
+            collectionids = [child["publishedfileid"] for child in collectionmaps]
+            collection = []
+
+            url_display = True
+
+            if len(collectionids) > 20:
+                collectionids = collectionids[:20]
+                footer_display = True
+                
+            for collectionid in collectionids:
+                workshopid = collectionid
+                try:
+                    (name, answer, log, descrip) = add_workshopid(userid, username, workshopid)
+                    collection_embed.append(answer + " " + descrip + "\n")
+                    print(answer)
+
+                except:
+                    collection_embed.append("Failed to add " + str(collectionid))
+     
+        except:
+            print(str(username) + " Failed to add collection " + str(collection_input))
+            collection_name = ("Failed to add collection " + str(collection_input))
+            collection_result = ("I don't know, something fucked up.")
+
+        collection_result = ""
+        for stuff in collection_embed:
+            collection_result += f"{stuff}"
+
+        if url_display == False:
+            collection_result = ("Incorrect CollectionID or Try Again")
+
+        embed = discord.Embed(title=collection_name, description=collection_result, color=0xFF6F00)
+
+        if url_display == True:
+            embed.url = ("https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(collection_input))
+
+        if footer_display == True:
+            embed.set_footer(text="(Only the first 20 Maps will be added.) ")
+
+        # Sends the message the user.
+        user = await client.fetch_user(userid)
+        await user.send(embed=embed)
+        await botPending.delete()
+
+        # Logs Process
+        print(str(username) + " Added Collection " + str(collection_input) + "\n")
+        channel = client.get_channel(channel_log)
+        await channel.send(str(username) + " Attempted to Add Collection " + str(collection_input))
+        return
 
 
 
@@ -746,6 +852,15 @@ async def on_message(message):
             collectionids = [child["publishedfileid"] for child in collectionmaps]
             collection = []
 
+            # Getting Collection Name
+            try:
+                payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
+                r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
+                data = r.json()
+                collection_name = data["response"]["publishedfiledetails"][0]["title"]
+            except:
+                collection_name = "Collection Map List"
+
             i = 0
             for collectionid in collectionids:
                 try:
@@ -763,15 +878,15 @@ async def on_message(message):
             collection_list = collection_list[0:1023]
 
             # Creates Embed
-            embed = discord.Embed(title="Collection Map List", description=collection_list, color=0xFF6F00)
+            embed = discord.Embed(title=collection_name, description=collection_list, color=0xFF6F00)
             embed.url = ("https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid))
             if entries > 35:
                 embed.set_footer(text="Warning! Approximately only 40 maps can be displayed")
 
             # Logs Usage
-            print(str(username) + " Requested Collection " + str(workshopid))
+            print(str(username) + " Retrieved Collection " + str(collection_name) + " of " + str(workshopid))
             channel = client.get_channel(channel_log)
-            await channel.send(str(username) + " Retrieved Collection " + str(workshopid))
+            await channel.send(str(username) + " Retrieved Collection " + str(collection_name) + " of " + str(workshopid))
 
         except:
             # Created Embed
@@ -785,6 +900,7 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         await user.send(embed=embed)
         await botPending.delete()
+        return
 
 
 
