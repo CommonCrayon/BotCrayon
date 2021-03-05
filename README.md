@@ -1,6 +1,8 @@
 # BotCrayon
 I am BotCrayon, created by CommonCrayon. My main current function is to check for map updates on the CSGO Steam Workshop.
 
+Special Thanks to Fluffy and Squidski.
+
 TO USE:
 Create your own:
 1 - bot_token.txt = Insert your bot token here.
