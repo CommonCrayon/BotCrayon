@@ -165,14 +165,20 @@ def add_workshopid(userid, username, workshopid):
         # If the map was not already added.
         if redundant_value == 0:
             (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-            conn = sqlite3.connect("maplist.db")
-            c = conn.cursor()
-            c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
-            conn.commit()
-            conn.close()
+            filename = filename[-3:]
+            
+            if filename == "bsp":
+                conn = sqlite3.connect("maplist.db")
+                c = conn.cursor()
+                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
+                conn.commit()
+                conn.close()
 
-            answer = (str(name) + " Added")
-            log = str(name) + " Added by " + str(username)
+                answer = (str(name) + " Added")
+                log = str(name) + " Added by " + str(username)
+            else:
+                answer = (str(name) + " is not a map.")
+                log = str(username) + " failed to add non-map " + str(name)                
 
         # If the map was already added.
         if redundant_value == 1:
