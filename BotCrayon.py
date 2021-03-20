@@ -8,6 +8,10 @@ import discord
 from discord.ext import tasks
 from discord.ext.commands import Bot
 
+import databaseActions
+import getData
+import addWorkshopID
+
 client = discord.Client()
 
 
@@ -20,182 +24,6 @@ channel_log = int(log_channel_file.read())
 steamkey_file = open("steamkey.txt")
 SteamApiKey = str(steamkey_file.read())
 
-
-
-# Creating the database for the Map list.
-def create_database():
-    try:
-        conn = sqlite3.connect("maplist.db")
-        c = conn.cursor()
-        c.execute("""CREATE TABLE IF NOT EXISTS maplist (userid text, mapid text, updatetime integer)""")
-        conn.commit()
-        c.close()
-        print("Created maplist.db, if it didn't exist.")
-    except:
-        print("Failed to Create maplist.db.")
-
-
-
-# Getting the time_updated to check whether the map has been updated or not.
-def check_time(workshopid, stored_update):
-    try:
-        payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
-        r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
-        data = r.json()
-        time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
-        return time_updated
-    except:
-        print("Failed to check_time of " + str(workshopid))
-        time_updated = stored_update
-        return time_updated
-
-
-
-# Retriving Map Information.
-def get_mapinfo(workshopid):
-    try:
-        payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
-        r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
-        data = r.json()
-
-        name = data["response"]["publishedfiledetails"][0]["title"]
-
-        filename = data["response"]["publishedfiledetails"][0]["filename"]
-        filename = filename.split("/")[-1]
-
-        mapid = data["response"]["publishedfiledetails"][0]["publishedfileid"]
-
-        time_created = data["response"]["publishedfiledetails"][0]["time_created"]
-        upload = time.strftime("%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_created))
-
-        time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
-        update = time.strftime("%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_updated))
-
-        preview_url = data["response"]["publishedfiledetails"][0]["preview_url"]
-        thumbnail = preview_url + "/?ima=fit"
-
-        workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid)
-
-        return (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated)
-    except:
-        print("Failed to Get Map Data of " + str(workshopid))
-
-
-
-# Retriving Changelog.
-def get_changelog(workshopid):
-    try:
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(requests.get("https://steamcommunity.com/sharedfiles/filedetails/changelog/"+ str(workshopid)).content,"html.parser")
-        announcements = soup.find("div", class_="workshopAnnouncement")
-
-        changelog = announcements.find("p").get_text("\n")
-        changelog = changelog[0:1023]
-
-        if changelog == "":
-            changelog = str("Changelog was empty.")
-        
-        return changelog
-    except:
-        print("Failed to get changelog of " + str(workshopid))
-
-
-
-# Update Database after Map Update.
-def update_record(time_updated, userid, mapid):
-    try:
-        conn = sqlite3.connect("maplist.db")
-        c = conn.cursor()
-        update = c.execute("UPDATE maplist SET updatetime=? WHERE userid=? AND mapid=?",(time_updated, userid, mapid),)
-        conn.commit()
-        c.close()
-        print("Record updated successfully.")
-
-    except sqlite3.Error as error:
-        print("Failed to update record from sqlite table", error)
-    finally:
-        if conn:
-            conn.close()
-            print("Closed SQLite Connection.")
-
-
-
-# Deleting a record when $remove is used.
-def deleteRecord(userid, workshopid):
-    try:
-        conn = sqlite3.connect("maplist.db")
-        c = conn.cursor()
-        delete = c.execute("DELETE FROM maplist WHERE userid=? AND mapid=?", (userid, workshopid,))
-        conn.commit()
-        c.close()
-        print("Record deleted successfully.")
-
-    except sqlite3.Error as error:
-        print("Failed to delete record from sqlite table ", error)
-    finally:
-        if conn:
-            conn.close()
-            print("Closed SQLite Connection.")
-
-
-
-# Tries to add a map to the list.
-def add_workshopid(userid, username, workshopid):
-    descrip = ""
-    name = ""
-    try:
-        conn = sqlite3.connect("maplist.db")
-        c = conn.cursor()
-        sqlite_select_query = """SELECT * from maplist"""
-        c.execute(sqlite_select_query)
-        records = c.fetchall()
-        redundant_value = 0
-
-        for row in records:
-            user_testid = row[0]
-            map_testid = row[1]
-            # Checking if the map is in the Database.
-            if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
-                redundant_value = 1
-
-    except:
-        print("Failed Database check on $add " + str(username))
-
-    try:
-        # If the map was not already added.
-        if redundant_value == 0:
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-            filename = filename[-3:]
-            
-            if filename == "bsp":
-                conn = sqlite3.connect("maplist.db")
-                c = conn.cursor()
-                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
-                conn.commit()
-                conn.close()
-
-                answer = (str(name) + " Added")
-                log = str(name) + " Added by " + str(username)
-            else:
-                answer = (str(name) + " is not a map.")
-                log = str(username) + " failed to add non-map " + str(name)                
-
-        # If the map was already added.
-        if redundant_value == 1:
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-
-            answer = (str(name) + " is already on your list.")
-            log = (str(username) + " tried to add already added map " + str(name))
-
-
-    except:
-        # Tells user that adding the map failed.
-
-        answer = ("Failed to add " + str(workshopid))
-        descrip = "Incorrect WorkshopID or Try Again." + "\n" + "(Remember! Only Public Visibility WorkshopIDs Work!)"
-        log = (str(username) + " Failed to Add " + str(workshopid))
-
-    return(name, answer, log, descrip)
 
 
 # Initiating the BotCrayon.
@@ -222,7 +50,7 @@ async def check_update():
             userid = row[0]
             workshopid = row[1]
             stored_update = row[2]
-            time_updated = check_time(workshopid, stored_update)
+            time_updated = getData.check_time(workshopid, stored_update)
 
             if stored_update == time_updated:
                 pass
@@ -230,10 +58,10 @@ async def check_update():
             else:
 
                 try:
-                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
                     print("Api Request Successful")
 
-                    changelog = get_changelog(workshopid)
+                    changelog = getData.get_changelog(workshopid)
                     print("Changelog Request Successful")
 
                     # Creates Embed for Update Message
@@ -251,7 +79,7 @@ async def check_update():
                     await user.send(embed=embed)
 
                     # Updates Database
-                    update_record(time_updated, userid, mapid)
+                    databaseActions.update_record(time_updated, userid, mapid)
 
                     # Logs Update
                     channel = client.get_channel(channel_log)
@@ -349,7 +177,7 @@ async def on_message(message):
         user = await client.fetch_user(userid)
         botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
-        (name, answer, log, descrip) = add_workshopid(userid, username, workshopid)
+        (name, answer, log, descrip) = addWorkshopID.add_workshopid(userid, username, workshopid)
 
         embed = discord.Embed(title=answer,description=descrip, color=0xFF6F00)
 
@@ -399,7 +227,7 @@ async def on_message(message):
                             if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
                                 # Checking if the map is Public on the Workshop.
                                 try:
-                                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
 
                                     # Sends Confirmation of Removal.
                                     embed = discord.Embed(title=name + " Removed.", color=0xFF6F00)
@@ -420,7 +248,7 @@ async def on_message(message):
                                     await channel.send(str(username) + " Removed " + str(workshopid))
 
                                 # Removes the record off the database.
-                                deleteRecord(userid, workshopid)
+                                databaseActions.delete_record(userid, workshopid)
 
                         except:
                             embed = discord.Embed(title="Failed to Remove.", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
@@ -548,7 +376,7 @@ async def on_message(message):
                     try:
                         if int(userid) == int(testid):
                             workshopid = row[1]
-                            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+                            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
                             maps.append(name + " = " + workshopid)
                     except:
                         maps.append("**WorkshopID is not Public = " + workshopid + "**")
@@ -610,8 +438,8 @@ async def on_message(message):
 
         try:
             # Getting Map information and Changelog.
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-            changelog = get_changelog(workshopid)
+            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
+            changelog = getData.get_changelog(workshopid)
 
             # Creating Embed.
             embed = discord.Embed(title=name, color=0xFF6F00)
@@ -657,8 +485,8 @@ async def on_message(message):
         if integer_check == True:
             try:
                 # Getting Map information and Changelog.
-                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
-                changelog = get_changelog(workshopid)
+                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
+                changelog = getData.get_changelog(workshopid)
 
                 # Creating Embed.
                 embed = discord.Embed(title=name, color=0xFF6F00)
@@ -717,7 +545,7 @@ async def on_message(message):
                         data = response.json()
                         result = data["response"]["publishedfiledetails"][0]["publishedfileid"]
 
-                        (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(result)
+                        (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(result)
                         filename = filename[-3:]
 
                         if filename == "bsp":
@@ -799,7 +627,7 @@ async def on_message(message):
             for collectionid in collectionids:
                 workshopid = collectionid
                 try:
-                    (name, answer, log, descrip) = add_workshopid(userid, username, workshopid)
+                    (name, answer, log, descrip) = addWorkshopID.add_workshopid(userid, username, workshopid)
                     collection_embed.append(answer + " " + descrip + "\n")
                     print(answer)
 
@@ -870,7 +698,7 @@ async def on_message(message):
             i = 0
             for collectionid in collectionids:
                 try:
-                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(collectionids[i])
+                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(collectionids[i])
                 except:
                     name = "UNKNOWN"
                 collection.append(str(name) + " = "  + str(collectionids[i]))
@@ -911,7 +739,7 @@ async def on_message(message):
 
 
 # Executing BotCrayon.
-create_database()
+databaseActions.create_database()
 check_update.start()
 
 # Bot Token
