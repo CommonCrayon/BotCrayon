@@ -1,4 +1,5 @@
-
+import getData
+import sqlite3
 
 
 # Tries to add a map to the list.
@@ -26,13 +27,13 @@ def add_workshopid(userid, username, workshopid):
     try:
         # If the map was not already added.
         if redundant_value == 0:
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+            (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
             filename = filename[-3:]
             
             if filename == "bsp":
                 conn = sqlite3.connect("maplist.db")
                 c = conn.cursor()
-                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, mapid, time_updated))
+                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, workshopid, time_updated))
                 conn.commit()
                 conn.close()
 
@@ -44,17 +45,35 @@ def add_workshopid(userid, username, workshopid):
 
         # If the map was already added.
         if redundant_value == 1:
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = get_mapinfo(workshopid)
+            (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
 
             answer = (str(name) + " is already on your list.")
             log = (str(username) + " tried to add already added map " + str(name))
 
-
     except:
-        # Tells user that adding the map failed.
+        try:
+            if redundant_value == 0:
+                (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
+                time_updated = getData.check_time(workshopid, 0)
 
-        answer = ("Failed to add " + str(workshopid))
-        descrip = "Incorrect WorkshopID or Try Again." + "\n" + "(Remember! Only Public Visibility WorkshopIDs Work!)"
-        log = (str(username) + " Failed to Add " + str(workshopid))
+                conn = sqlite3.connect("maplist.db")
+                c = conn.cursor()
+                c.execute("INSERT INTO maplist (userid, mapid, updatetime) VALUES (?, ?, ?)", (userid, workshopid, time_updated))
+                conn.commit()
+                conn.close()
+                answer = (str(name) + " Added. (Unlisted Version)")
+                log = str(name) + " Added by " + str(username)
+            
+            if redundant_value == 1:
+                (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
+
+                answer = (str(name) + " is already on your list.")
+                log = (str(username) + " tried to add already added map " + str(name))            
+
+        except:
+            # Tells user that adding the map failed.
+            answer = ("Failed to add " + str(workshopid))
+            descrip = "Incorrect WorkshopID or Try Again." + "\n" + "(Remember! Only Public Visibility WorkshopIDs Work!)"
+            log = (str(username) + " Failed to Add " + str(workshopid))
 
     return(name, answer, log, descrip)

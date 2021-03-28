@@ -36,7 +36,7 @@ async def on_ready():
 
 
 # Checking Updates every 10 minutes.
-@tasks.loop(minutes=10.0)
+@tasks.loop(minutes=5.0)
 async def check_update():
     try:
         conn = sqlite3.connect("maplist.db")
@@ -58,8 +58,15 @@ async def check_update():
             else:
 
                 try:
-                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
-                    print("Api Request Successful")
+                    try: 
+                        (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
+                        print("Api Request Successful")
+                    except:
+                        (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
+                        filename = "Unlisted Map"
+                        thumbnail = ""
+                        print("Unlisted Request Successful")
+
 
                     changelog = getData.get_changelog(workshopid)
                     print("Changelog Request Successful")
@@ -71,7 +78,7 @@ async def check_update():
                     embed.add_field(name="Time Updated:", value=update, inline=False)
                     embed.add_field(name="Change Log", value=changelog, inline=False)
                     embed.set_image(url=thumbnail)
-                    embed.set_footer(text="Map ID: " + mapid + "     " + "File Name: " + filename)
+                    embed.set_footer(text="Map ID: " + workshopid + "     " + "File Name: " + filename)
                     print("Embed Creation Successful")
 
                     # Sends Update Message to User
@@ -79,7 +86,7 @@ async def check_update():
                     await user.send(embed=embed)
 
                     # Updates Database
-                    databaseActions.update_record(time_updated, userid, mapid)
+                    databaseActions.update_record(time_updated, userid, workshopid)
 
                     # Logs Update
                     channel = client.get_channel(channel_log)
@@ -194,6 +201,30 @@ async def on_message(message):
 
 
 
+    if message.content.startswith("$unlisted"):
+        workshopid = message.content[10:]
+        userid = message.author.id
+        username = message.author
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
+
+        (name, answer, log, descrip) = addWorkshopID.add_unlistedid(userid, username, workshopid)
+
+        embed = discord.Embed(title=answer,description=descrip, color=0xFF6F00)
+
+        # Sends the message the user.
+        user = await client.fetch_user(userid)
+        await user.send(embed=embed)
+        await botPending.delete()
+
+        # Logs Process
+        print(log)
+        channel = client.get_channel(channel_log)
+        await channel.send(log)
+        return
+
+
     # Removing from Map List.
     if message.content.startswith("$remove"):
 
@@ -227,7 +258,7 @@ async def on_message(message):
                             if int(userid) == int(user_testid) and int(workshopid) == int(map_testid):
                                 # Checking if the map is Public on the Workshop.
                                 try:
-                                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
+                                    (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
 
                                     # Sends Confirmation of Removal.
                                     embed = discord.Embed(title=name + " Removed.", color=0xFF6F00)
@@ -376,7 +407,10 @@ async def on_message(message):
                     try:
                         if int(userid) == int(testid):
                             workshopid = row[1]
-                            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
+                            try:
+                                (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
+                            except:
+                                (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
                             maps.append(name + " = " + workshopid)
                     except:
                         maps.append("**WorkshopID is not Public = " + workshopid + "**")
@@ -438,7 +472,7 @@ async def on_message(message):
 
         try:
             # Getting Map information and Changelog.
-            (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
+            (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
             changelog = getData.get_changelog(workshopid)
 
             # Creating Embed.
@@ -485,7 +519,7 @@ async def on_message(message):
         if integer_check == True:
             try:
                 # Getting Map information and Changelog.
-                (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(workshopid)
+                (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
                 changelog = getData.get_changelog(workshopid)
 
                 # Creating Embed.
@@ -495,7 +529,7 @@ async def on_message(message):
                 embed.add_field(name="Time Updated:", value=update, inline=False)
                 embed.add_field(name="Change Log", value=changelog, inline=False)
                 embed.set_image(url=thumbnail)
-                embed.set_footer(text="Map ID: " + mapid + "     " + "File Name: " + filename)
+                embed.set_footer(text="Map ID: " + workshopid + "     " + "File Name: " + filename)
 
                 # Logs the Search.
                 print(str(name) + " Searched by " + str(username))
@@ -503,13 +537,31 @@ async def on_message(message):
                 await channel.send(str(name) + " Searched by " + str(username))
 
             except:
-                # Informs user of error.
-                embed = discord.Embed(title="Error Searching", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
+                try:
+                    (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
+                    changelog = getData.get_changelog(workshopid)
 
-                # Logs Error.
-                print("Error Searching " + str(workshopid) + " by " + str(username))
-                channel = client.get_channel(channel_log)
-                await channel.send("Error Searching " + str(workshopid) + " by " + str(username))
+                    # Creating Embed.
+                    embed = discord.Embed(title=name, color=0xFF6F00)
+                    embed.url = workshop_link
+                    embed.add_field(name="Time Uploaded:", value=upload, inline=False)
+                    embed.add_field(name="Time Updated:", value=update, inline=False)
+                    embed.add_field(name="Change Log", value=changelog, inline=False)
+                    embed.set_footer(text="Unlisted Search of Map ID: " + workshopid)
+
+                    # Logs the Search.
+                    print(str(name) + " Searched by " + str(username))
+                    channel = client.get_channel(channel_log)
+                    await channel.send(str(name) + " Searched by " + str(username))
+
+                except:
+                    # Informs user of error.
+                    embed = discord.Embed(title="Error Searching", description="Incorrect WorkshopID or Try Again.", color=0xFF6F00)
+
+                    # Logs Error.
+                    print("Error Searching " + str(workshopid) + " by " + str(username))
+                    channel = client.get_channel(channel_log)
+                    await channel.send("Error Searching " + str(workshopid) + " by " + str(username))
         
         # If the search is for a keyword
         else:
@@ -545,7 +597,7 @@ async def on_message(message):
                         data = response.json()
                         result = data["response"]["publishedfiledetails"][0]["publishedfileid"]
 
-                        (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(result)
+                        (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(result)
                         filename = filename[-3:]
 
                         if filename == "bsp":
@@ -698,7 +750,7 @@ async def on_message(message):
             i = 0
             for collectionid in collectionids:
                 try:
-                    (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated) = getData.get_mapinfo(collectionids[i])
+                    (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(collectionids[i])
                 except:
                     name = "UNKNOWN"
                 collection.append(str(name) + " = "  + str(collectionids[i]))

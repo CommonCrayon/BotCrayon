@@ -9,18 +9,18 @@ def create_database():
         c.execute("""CREATE TABLE IF NOT EXISTS maplist (userid text, mapid text, updatetime integer)""")
         conn.commit()
         c.close()
-        print("Created maplist.db, if it didn't exist.")
+        print("Created Databases, if they didn't exist.")
     except:
-        print("Failed to Create maplist.db.")
+        print("Failed to Create Databases.")
 
 
 
 # Update Database after Map Update.
-def update_record(time_updated, userid, mapid):
+def update_record(time_updated, userid, workshopid):
     try:
         conn = sqlite3.connect("maplist.db")
         c = conn.cursor()
-        update = c.execute("UPDATE maplist SET updatetime=? WHERE userid=? AND mapid=?",(time_updated, userid, mapid),)
+        update = c.execute("UPDATE maplist SET updatetime=? WHERE userid=? AND mapid=?",(time_updated, userid, workshopid),)
         conn.commit()
         c.close()
         print("Record updated successfully.")

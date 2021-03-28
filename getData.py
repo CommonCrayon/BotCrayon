@@ -1,5 +1,8 @@
 
 import requests
+import time
+from datetime import datetime
+from datetime import date
 
 # Getting the time_updated to check whether the map has been updated or not.
 def check_time(workshopid, stored_update):
@@ -8,11 +11,37 @@ def check_time(workshopid, stored_update):
         r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
         data = r.json()
         time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
+
         return time_updated
     except:
-        print("Failed to check_time of " + str(workshopid))
-        time_updated = stored_update
-        return time_updated
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(requests.get("https://steamcommunity.com/sharedfiles/filedetails/"+ str(workshopid)).content,"html.parser")           
+            detailStats = soup.find("div", class_="detailsStatsContainerRight")
+            idk = detailStats.get_text()
+            details = list(idk.split("\n")) 
+
+            update = details[3]
+            times = update.split()
+
+            if times[2] == "@":
+                times[2] = date.today().year
+            else:
+                times[1] = (times[1])[:-1]
+
+            hello = (times[0], times[1], times[2], times[-1])
+            
+            convertino = ' '.join(map(str, hello))
+
+            datetime_object = datetime.strptime(convertino, '%d %b %Y %I:%M%p')
+            time_updated = int(datetime_object.timestamp())  
+
+            return time_updated  
+        except:
+            print("Failed to check_time of " + str(workshopid))
+            time_updated = stored_update
+            return time_updated
+    
 
 
 
@@ -24,12 +53,10 @@ def get_mapinfo(workshopid):
         data = r.json()
 
         name = data["response"]["publishedfiledetails"][0]["title"]
-
+        
         filename = data["response"]["publishedfiledetails"][0]["filename"]
         filename = filename.split("/")[-1]
-
-        mapid = data["response"]["publishedfiledetails"][0]["publishedfileid"]
-
+        
         time_created = data["response"]["publishedfiledetails"][0]["time_created"]
         upload = time.strftime("%A, %d %B, %Y - %H:%M:%S UTC", time.gmtime(time_created))
 
@@ -41,7 +68,7 @@ def get_mapinfo(workshopid):
 
         workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid)
 
-        return (name, workshop_link, upload, update, thumbnail, mapid, filename, time_updated)
+        return (name, workshop_link, upload, update, thumbnail, filename, time_updated)
     except:
         print("Failed to Get Map Data of " + str(workshopid))
 
@@ -63,3 +90,30 @@ def get_changelog(workshopid):
         return changelog
     except:
         print("Failed to get changelog of " + str(workshopid))
+
+
+
+def get_unlisted(workshopid):
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(requests.get("https://steamcommunity.com/sharedfiles/filedetails/"+ str(workshopid)).content,"html.parser")
+
+        title = soup.find("div", class_="workshopItemTitle")
+        name = title.get_text()
+
+        detailStats = soup.find("div", class_="detailsStatsContainerRight")
+        idk = detailStats.get_text()
+        details = list(idk.split("\n")) 
+        
+        upload = details[2]
+        update = details[3]
+
+        #thumbnail = soup.find("div", class_="workshopItemPreviewImageMain")
+        #onclick="ShowEnlargedImagePreview"
+
+        workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid)
+
+        return(name, upload, update, workshop_link)
+
+    except:
+        print("Failed to get_unlisted of " + str(workshopid))
