@@ -58,15 +58,8 @@ async def check_update():
             else:
 
                 try:
-                    try: 
-                        (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
-                        print("Api Request Successful")
-                    except:
-                        (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
-                        filename = "Unlisted Map"
-                        thumbnail = ""
-                        print("Unlisted Request Successful")
-
+                    (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
+                    print("Api Request Successful")
 
                     changelog = getData.get_changelog(workshopid)
                     print("Changelog Request Successful")
@@ -199,30 +192,6 @@ async def on_message(message):
         await channel.send(log)
         return
 
-
-
-    if message.content.startswith("$unlisted"):
-        workshopid = message.content[10:]
-        userid = message.author.id
-        username = message.author
-
-        user = await client.fetch_user(userid)
-        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
-
-        (name, answer, log, descrip) = addWorkshopID.add_unlistedid(userid, username, workshopid)
-
-        embed = discord.Embed(title=answer,description=descrip, color=0xFF6F00)
-
-        # Sends the message the user.
-        user = await client.fetch_user(userid)
-        await user.send(embed=embed)
-        await botPending.delete()
-
-        # Logs Process
-        print(log)
-        channel = client.get_channel(channel_log)
-        await channel.send(log)
-        return
 
 
     # Removing from Map List.
@@ -407,10 +376,7 @@ async def on_message(message):
                     try:
                         if int(userid) == int(testid):
                             workshopid = row[1]
-                            try:
-                                (name, workshop_link, upload, update, thumbnail, filename, time_updated) = getData.get_mapinfo(workshopid)
-                            except:
-                                (name, upload, update, workshop_link) = getData.get_unlisted(workshopid)
+                            (name) = getData.get_mapname(workshopid)
                             maps.append(name + " = " + workshopid)
                     except:
                         maps.append("**WorkshopID is not Public = " + workshopid + "**")
@@ -544,8 +510,8 @@ async def on_message(message):
                     # Creating Embed.
                     embed = discord.Embed(title=name, color=0xFF6F00)
                     embed.url = workshop_link
-                    embed.add_field(name="Time Uploaded:", value=upload, inline=False)
-                    embed.add_field(name="Time Updated:", value=update, inline=False)
+                    embed.add_field(name="Time Uploaded:", value=upload, inline=True)
+                    embed.add_field(name="Time Updated:", value=update, inline=True)
                     embed.add_field(name="Change Log", value=changelog, inline=False)
                     embed.set_footer(text="Unlisted Search of Map ID: " + workshopid)
 

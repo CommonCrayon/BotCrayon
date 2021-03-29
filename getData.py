@@ -12,35 +12,11 @@ def check_time(workshopid, stored_update):
         data = r.json()
         time_updated = data["response"]["publishedfiledetails"][0]["time_updated"]
 
-        return time_updated
+        return time_updated 
     except:
-        try:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(requests.get("https://steamcommunity.com/sharedfiles/filedetails/"+ str(workshopid)).content,"html.parser")           
-            detailStats = soup.find("div", class_="detailsStatsContainerRight")
-            idk = detailStats.get_text()
-            details = list(idk.split("\n")) 
-
-            update = details[3]
-            times = update.split()
-
-            if times[2] == "@":
-                times[2] = date.today().year
-            else:
-                times[1] = (times[1])[:-1]
-
-            hello = (times[0], times[1], times[2], times[-1])
-            
-            convertino = ' '.join(map(str, hello))
-
-            datetime_object = datetime.strptime(convertino, '%d %b %Y %I:%M%p')
-            time_updated = int(datetime_object.timestamp())  
-
-            return time_updated  
-        except:
-            print("Failed to check_time of " + str(workshopid))
-            time_updated = stored_update
-            return time_updated
+        print("Failed to check_time of " + str(workshopid))
+        time_updated = stored_update
+        return time_updated
     
 
 
@@ -69,6 +45,20 @@ def get_mapinfo(workshopid):
         workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid)
 
         return (name, workshop_link, upload, update, thumbnail, filename, time_updated)
+    except:
+        print("Failed to Get Map Data of " + str(workshopid))
+
+
+
+# Retriving Map Information.
+def get_mapname(workshopid):
+    try:
+        payload = {"itemcount": 1, "publishedfileids[0]": [str(workshopid)]}
+        r = requests.post("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=payload)
+        data = r.json()
+        name = data["response"]["publishedfiledetails"][0]["title"]
+        
+        return (name)
     except:
         print("Failed to Get Map Data of " + str(workshopid))
 
@@ -109,7 +99,6 @@ def get_unlisted(workshopid):
         update = details[3]
 
         #thumbnail = soup.find("div", class_="workshopItemPreviewImageMain")
-        #onclick="ShowEnlargedImagePreview"
 
         workshop_link = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(workshopid)
 
