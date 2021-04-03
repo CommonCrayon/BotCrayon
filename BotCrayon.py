@@ -45,6 +45,9 @@ async def check_update():
         c.execute(sqlite_select_query)
         records = c.fetchall()
         print("Rows: " + str(len(records)) + " Check at: " + str(datetime.now()))
+        f = open("checker_log.txt", "a")
+        f.write("Rows: " + str(len(records)) + " Check at: " + str(datetime.now()) + "\n")
+        f.close()
 
         for row in records:
             userid = row[0]
@@ -84,16 +87,29 @@ async def check_update():
                     # Logs Update
                     channel = client.get_channel(channel_log)
                     await channel.send(str(name) + " Updated for " + str(userid))
-                    print(str(name) + " Updated! Checked on: " + str(datetime.now()) + " for " + userid)
+                    print(str(name) + " Updated! Checked on: " + str(datetime.now()) + " for " + str(userid))
+
+                    f = open("checker_log.txt", "a")
+                    f.write(str(name) + " Updated! Checked on: " + str(datetime.now()) + " for " + str(userid) + "\n")
+                    f.close()
 
                 except:
                     print("Failed to send embed update of " + str(workshopid) + " for " + str(userid))
+                    f = open("checker_log.txt", "a")
+                    f.write("Failed to send embed update of " + str(workshopid) + " for " + str(userid) + "\n")
+                    f.close()
 
         print("Finished Check at: " + str(datetime.now()))
+        f = open("checker_log.txt", "a")
+        f.write("Finished Check at: " + str(datetime.now()) + "\n")
+        f.close()
         c.close()
 
     except:
         print("Failed 10 Minute Update Check.")
+        f = open("checker_log.txt", "a")
+        f.write("Failed 10 Minute Update Check at " + str(datetime.now()) + "\n")
+        f.close()
 
 
 
