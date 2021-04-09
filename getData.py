@@ -70,14 +70,16 @@ def get_changelog(workshopid):
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(requests.get("https://steamcommunity.com/sharedfiles/filedetails/changelog/"+ str(workshopid)).content,"html.parser")
         announcements = soup.find("div", class_="workshopAnnouncement")
-
         changelog = announcements.find("p").get_text("\n")
-        changelog = changelog[0:1023]
+
+        if len(changelog) > 1000:
+            changelog = changelog[0:976]
+            changelog = (changelog + "\n" + "(Changelog was cut. Exceeded 1000 characters.)")
 
         if changelog == "":
             changelog = str("Changelog was empty.")
         
-        return changelog
+        return (changelog)
     except:
         print("Failed to get changelog of " + str(workshopid))
 

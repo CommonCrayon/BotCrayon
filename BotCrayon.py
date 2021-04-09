@@ -134,41 +134,38 @@ async def on_message(message):
         # $help Embed.
         embed = discord.Embed(title="BotCrayon",
             description="I am the Bot of CommonCrayon." + "\n"
-            + "My main current function is to check for map updates on the CSGO Steam Workshop." + "\n"
+            + "My function is to check for map updates on the CSGO Steam Workshop." + "\n"
             + " Please contact CommonCrayon#9275 for issues.", color=0xFF6F00)
         embed.set_thumbnail(url="https://i.imgur.com/laJnwhg.png")
 
         # $add
         embed.add_field(name="$add [WorkshopID]",
-            value="Adds a workshop map to your update checker list." + "\n"
-            + "(Only Public Visibility WorkshopIDs Work!)", inline=False)
+            value="Adds a workshop map to your list." + "\n"
+            + "Up to 20 maps can be added.", inline=False)
         
         # $remove
-        embed.add_field(name="$remove [WorkshopID]", value="Removes a workshop map from your update checker list.", inline=False)
+        embed.add_field(name="$remove [WorkshopID]", value="Removes a workshop map from your list.", inline=False)
 
         # $purge
-        embed.add_field(name="$purge", value="Removes ALL workshop maps from your update checker list.", inline=False)
+        embed.add_field(name="$purge", value="Removes ALL workshop maps from your list.", inline=False)
 
         # $list
-        embed.add_field(name="$list", value="Displays the list of maps you have on your update checker.", inline=False)
+        embed.add_field(name="$list", value="Displays the maps on your list.", inline=False)
 
         # $search
         embed.add_field(name="$search [WorkshopID] or [SearchText]", value="Searches for a workshop map.", inline=False)
 
         # $changelog
-        embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map." + "\n"
-            + "(Can not be larger than 1024 characters)", inline=False)
+        embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map.", inline=False)
         
         # $collection
-        embed.add_field(name="$collection [CollectionID]", value="Displays a whole workshop Collection." + "\n"
-            + "(Collections with more than 40 maps will be trimmed.)", inline=False)
+        embed.add_field(name="$collection [CollectionID]", value="Displays a workshop Collection.", inline=False)
 
         # $collectionadd
-        embed.add_field(name="$collectionadd [CollectionID]", value="Adds a whole workshop Collection to your update checker list." + "\n"
-            + "(Collections with more than 20 maps will be trimmed.)", inline=False)
+        embed.add_field(name="$collectionadd [CollectionID]", value="Adds a Collection to your list.", inline=False)
         
         # Footer
-        embed.set_footer(text="BotCrayon made by CommonCrayon. Special thanks to Fluffy & Squidski")
+        embed.set_footer(text="BotCrayon made by CommonCrayon. (Special thanks to Fluffy & Squidski)")
 
         # Sends Message
         user = await client.fetch_user(userid)
@@ -373,13 +370,15 @@ async def on_message(message):
 
         userid = message.author.id
         username = message.author
+
         maps = []
+        max_list = 0
 
         user = await client.fetch_user(userid)
         botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
 
         # Getting the List of Maps for the User.
-        async def get_list():
+        async def get_list(max_list):
             try:
                 conn = sqlite3.connect("maplist.db")
                 c = conn.cursor()
@@ -391,11 +390,13 @@ async def on_message(message):
                     testid = row[0]
                     try:
                         if int(userid) == int(testid):
+                            max_list += 1
                             workshopid = row[1]
                             (name) = getData.get_mapname(workshopid)
                             maps.append(name + " = " + workshopid)
                     except:
                         maps.append("**WorkshopID is not Public = " + workshopid + "**")
+                return (max_list)
                 c.close()
 
             except sqlite3.Error as error:
@@ -404,7 +405,7 @@ async def on_message(message):
                 if conn:
                     conn.close()
                     print("SQLite Connection Closed")
-        await get_list()
+        max_list = await get_list(max_list)
 
         # Creating Message and Embed.
         try:
@@ -418,6 +419,13 @@ async def on_message(message):
                 user_list = str("Your List is Empty." + "\n" + "Add a Map by $add [WorkshopID]")
 
             embed = discord.Embed(title="Update Checker List", description=user_list, color=0xFF6F00)
+
+            if max_list == 0:
+                pass     
+            elif max_list < 20:
+                embed.set_footer(text="The number of entries the List contains: " + str(max_list))
+            else:
+                embed.set_footer(text="The List has reached maximum number of entries: 20")
 
             # Logs the Retreival of the List.
             print(str(username) + " Requested list")
