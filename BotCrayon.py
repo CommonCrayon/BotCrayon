@@ -155,14 +155,14 @@ async def on_message(message):
         # $search
         embed.add_field(name="$search [WorkshopID] or [SearchText]", value="Searches for a workshop map.", inline=False)
 
-        # $changelog
-        embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map.", inline=False)
-        
         # $collection
         embed.add_field(name="$collection [CollectionID]", value="Displays a workshop Collection.", inline=False)
 
         # $collectionadd
         embed.add_field(name="$collectionadd [CollectionID]", value="Adds a Collection to your list.", inline=False)
+
+        # $changelog
+        embed.add_field(name="$changelog [WorkshopID]", value="Displays only the changelog for a workshop map.", inline=False)
         
         # Footer
         embed.set_footer(text="BotCrayon made by CommonCrayon. (Special thanks to Fluffy & Squidski)")
@@ -641,7 +641,12 @@ async def on_message(message):
         footer_display = False
         url_display = False
         collection_embed = []
+
         print("\n" + str(username) + " Adding Collection " + str(collection_input))
+        f = open("checker_log.txt", "a")
+        f.write(str(username) + " Adding Collection " + str(collection_input) + "\n")
+        f.close()
+
 
         # Getting Collection Name
         try:
@@ -672,14 +677,22 @@ async def on_message(message):
                     (name, answer, log, descrip) = addWorkshopID.add_workshopid(userid, username, workshopid)
                     collection_embed.append(answer + " " + descrip + "\n")
                     print(answer)
+                    f = open("checker_log.txt", "a")
+                    f.write(answer + "\n")
+                    f.close()
 
                 except:
                     collection_embed.append("Failed to add " + str(collectionid))
      
         except:
             print(str(username) + " Failed to add collection " + str(collection_input))
+
+            f = open("checker_log.txt", "a")
+            f.write(str(username) + " Failed to add collection " + str(collection_input) + "\n")
+            f.close()
+
             collection_name = ("Failed to add collection " + str(collection_input))
-            collection_result = ("I don't know, something fucked up.")
+            collection_result = ("I don't know, something went wrong.")
 
         collection_result = ""
         for stuff in collection_embed:
@@ -703,6 +716,10 @@ async def on_message(message):
 
         # Logs Process
         print(str(username) + " Added Collection " + str(collection_input) + "\n")
+        f = open("checker_log.txt", "a")
+        f.write(str(username) + " Added Collection " + str(collection_input) + "\n")
+        f.close()
+
         channel = client.get_channel(channel_log)
         await channel.send(str(username) + " Attempted to Add Collection " + str(collection_input))
         return
