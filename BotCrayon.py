@@ -797,6 +797,28 @@ async def on_message(message):
 
 
 
+    # Lists database to user with special permission.
+    if message.content.startswith("$master"):
+        userid = message.author.id
+
+        user = await client.fetch_user(userid)
+        botPending = await user.send(":gear: Processing Request, This might take a few seconds. :gear: ")
+
+        if userid == 277360174371438592:
+            databaseActions.master_data()
+            embed = discord.Embed(title="**Processed**", color=0xFF6F00)
+
+        else:
+            embed = discord.Embed(title="Permission Denied.", description="You need to be CommonCrayon!", color=0xFF6F00)
+        
+        user = await client.fetch_user(userid)
+        await user.send(embed=embed)
+        await user.send(file=discord.File('database.txt'))
+        await botPending.delete()
+        return        
+
+
+
 # Executing BotCrayon.
 databaseActions.create_database()
 check_update.start()
