@@ -58,6 +58,11 @@ def delete_record(userid, workshopid):
 # Gets all of database for Admin.
 def master_data():
     try:
+
+        f = open("database.txt","r+")
+        f.truncate(0)
+        f.close()
+
         conn = sqlite3.connect("maplist.db")
         c = conn.cursor()
         sqlite_select_query = """SELECT * from maplist"""
@@ -65,7 +70,7 @@ def master_data():
         records = c.fetchall()
 
         f = open("database.txt", "a")
-        f.write("\nUserID = MapID = UpdateTime || @ " + str(datetime.now()) + "\n")
+        f.write("UserID = MapID = UpdateTime || @ " + str(datetime.now()) + "\n")
         f.close()
 
         for row in records:
